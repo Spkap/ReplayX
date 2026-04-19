@@ -1,0 +1,37 @@
+{
+  "name": "replayx",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Codex-first incident response scaffold for the ReplayX hackathon demo.",
+  "type": "module",
+  "packageManager": "pnpm@10.8.1",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx orchestrator/main.ts",
+    "golden-run": "tsx orchestrator/main.ts --phase golden-run",
+    "fix-arena-phase": "tsx orchestrator/main.ts --phase fix-arena",
+    "review-phase": "tsx orchestrator/main.ts --phase review-and-regression",
+    "demo-app": "tsx demo_app/server.ts",
+    "dashboard:dev": "pnpm --dir dashboard dev",
+    "dashboard:build": "pnpm --dir dashboard build",
+    "demo-app:checkout-race": "tsx demo_app/scripts/repro-checkout-race.ts",
+    "demo-app:auth-refresh": "tsx demo_app/scripts/repro-auth-refresh.ts",
+    "demo-app:null-shape": "tsx demo_app/scripts/repro-null-shape.ts",
+    "repro-phase": "tsx orchestrator/main.ts --phase repro",
+    "challenger-phase": "tsx orchestrator/main.ts --phase challenger-validation",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "start": "node dist/orchestrator/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@openai/codex-sdk": "0.121.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "jsx": "react-jsx",
+    "lib": [
+      "ES2022"
+    ],
+    "strict": true,
+    "noEmitOnError": true,
+    "declaration": true,
+    "outDir": "dist",
+    "rootDir": ".",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "orchestrator/**/*.ts",
+    "demo_app/**/*.ts",
+    "demo_app/**/*.tsx",
+    "tests/**/*.ts"
+  ]
+}

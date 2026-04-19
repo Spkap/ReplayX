@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "incidentId": "incident-checkout-race-001",
+  "title": "Checkout confirms orders before inventory reservation settles",
+  "incidentClass": "checkout-race-condition",
+  "service": "checkout-api",
+  "environment": "staging",
+  "severity": "sev-2",
+  "repoRoot": "demo_app/",
+  "summary": {
+    "symptom": "Concurrent checkout requests intermittently oversell the same SKU and create a paid order with negative inventory.",
+    "customerImpact": "Roughly 1 in 12 flash-sale checkouts confirms successfully and then needs manual cancellation because inventory drops below zero.",
+    "firstObservedAt": "2026-04-15T10:12:00Z",
+    "customerVisible": true
+  },
+  "suspectedFiles": [
+    "demo_app/src/checkout/submit-order.ts",
+    "demo_app/src/inventory/reserve-stock.ts",
+    "demo_app/src/queue/checkout-worker.ts"
+  ],
+  "evidence": {
+    "stackTraces": [
+      {
+        "source": "checkout-worker",
+        "errorType": "InvariantViolation",
+        "message": "inventory.available must never be negative after commit",
+        "frames": [
+          {
+            "file": "demo_app/src/inventory/reserve-stock.ts",
+            "line": 88,
+            "column": 13,
+            "function": "applyReservation"
+          },
+          {
+            "file": "demo_app/src/checkout/submit-order.ts",
+            "line": 144,
+            "column": 21,
+            "function": "commitCheckout"
+          }
+        ]
+      }
+    ],
+    "logs": [
+      {
+        "source": "checkout-api",
+        "observedAt": "2026-04-15T10:12:03Z",
+        "level": "warn",
+        "message": "Inventory snapshot changed between validation and write",
+        "context": {
+          "sku": "sku-console-pro",
+          "cartId": "cart_1042",
+          "requestId": "req_4ac0",
+          "snapshotVersion": 9124
+        }
+      },
+      {
+        "source": "checkout-worker",
+        "observedAt": "2026-04-15T10:12:03Z",
+        "level": "error",
+        "message": "Order committed with stale reservation token",
+        "context": {
+          "orderId": "ord_8021",
+          "reservationToken": "res_stale_779",
+          "sku": "sku-console-pro"
+        }
+      }
+    ],
+    "metrics": [
+      {
+        "name": "checkout.oversell_events",
+        "unit": "count",
+        "value": 7,
+        "observedAt": "2026-04-15T10:15:00Z",
+        "baselineValue": 0
+      },
+      {
+        "name": "inventory.negative_available",
+        "unit": "count",
+        "value": 3,
+        "observedAt": "2026-04-15T10:15:00Z",
+        "baselineValue": 0
+      }
+    ]
+  },
+  "commands": {
+    "failing": {
+      "label": "Concurrent checkout repro",
+      "command": "pnpm tsx demo_app/scripts/repro-checkout-race.ts",
+      "workingDirectory": ".",
+      "expectedExitCode": 1
+    },
+    "healthy": {
+      "label": "Sequential checkout sanity",
+      "command": "pnpm tsx demo_app/scripts/repro-checkout-race.ts --serial",
+      "workingDirectory": ".",
+      "expectedExitCode": 0
+    }
+  },
+  "recentChanges": [
+    {
+      "commit": "5aa7a81",
+      "summary": "Move inventory reservation to async queue-backed worker to speed up checkout response time",
+      "author": "sourabh",
+      "mergedAt": "2026-04-14T18:25:00Z",
+      "files": [
+        "demo_app/src/checkout/submit-order.ts",
+        "demo_app/src/queue/checkout-worker.ts",
+        "demo_app/src/inventory/reserve-stock.ts"
+      ]
+    }
+  ],
+  "constraints": [
+    "Keep the demo fix limited to checkout and inventory modules.",
+    "Avoid introducing distributed locking or external infrastructure."
+  ],
+  "acceptanceCriteria": [
+    "Concurrent repro no longer produces negative inventory.",
+    "Sequential checkout path remains successful.",
+    "Reservation and order commit use a single deterministic inventory state."
+  ]
+}

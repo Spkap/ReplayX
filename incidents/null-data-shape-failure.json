@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "incidentId": "incident-null-shape-003",
+  "title": "Order summary crashes when shipping quote omits taxes array",
+  "incidentClass": "null-data-shape-failure",
+  "service": "order-summary",
+  "environment": "staging",
+  "severity": "sev-3",
+  "repoRoot": "demo_app/",
+  "summary": {
+    "symptom": "The order summary page throws a TypeError when the shipping quote payload returns null for taxes instead of an array.",
+    "customerImpact": "Users with digital-only carts see a blank summary page and cannot submit their order.",
+    "firstObservedAt": "2026-04-15T14:03:00Z",
+    "customerVisible": true
+  },
+  "suspectedFiles": [
+    "demo_app/src/orders/build-summary.ts",
+    "demo_app/src/orders/quote-adapter.ts",
+    "demo_app/src/routes/order-summary.tsx"
+  ],
+  "evidence": {
+    "stackTraces": [
+      {
+        "source": "order-summary-ui",
+        "errorType": "TypeError",
+        "message": "Cannot read properties of null (reading 'reduce')",
+        "frames": [
+          {
+            "file": "demo_app/src/orders/build-summary.ts",
+            "line": 33,
+            "column": 28,
+            "function": "buildSummaryTotals"
+          },
+          {
+            "file": "demo_app/src/routes/order-summary.tsx",
+            "line": 52,
+            "column": 19,
+            "function": "renderOrderSummary"
+          }
+        ]
+      }
+    ],
+    "logs": [
+      {
+        "source": "quote-adapter",
+        "observedAt": "2026-04-15T14:03:04Z",
+        "level": "info",
+        "message": "Received quote payload with optional taxes field omitted by upstream",
+        "context": {
+          "quoteId": "quote_554",
+          "cartType": "digital-only",
+          "upstreamStatus": 200
+        }
+      },
+      {
+        "source": "order-summary-ui",
+        "observedAt": "2026-04-15T14:03:04Z",
+        "level": "error",
+        "message": "Failed to compute grand total from quote payload",
+        "context": {
+          "quoteId": "quote_554",
+          "route": "/checkout/summary",
+          "component": "OrderSummary"
+        }
+      }
+    ],
+    "metrics": [
+      {
+        "name": "order_summary.render_errors",
+        "unit": "count",
+        "value": 11,
+        "observedAt": "2026-04-15T14:05:00Z",
+        "baselineValue": 0
+      },
+      {
+        "name": "quote_adapter.null_optional_fields",
+        "unit": "count",
+        "value": 11,
+        "observedAt": "2026-04-15T14:05:00Z",
+        "baselineValue": 0
+      }
+    ]
+  },
+  "commands": {
+    "failing": {
+      "label": "Null taxes summary repro",
+      "command": "pnpm tsx demo_app/scripts/repro-null-shape.ts --fixture missing-taxes",
+      "workingDirectory": ".",
+      "expectedExitCode": 1
+    },
+    "healthy": {
+      "label": "Complete quote summary sanity",
+      "command": "pnpm tsx demo_app/scripts/repro-null-shape.ts --fixture complete-quote",
+      "workingDirectory": ".",
+      "expectedExitCode": 0
+    }
+  },
+  "recentChanges": [
+    {
+      "commit": "8f03e33",
+      "summary": "Remove redundant quote normalization to reduce client-side bundle size",
+      "author": "sourabh",
+      "mergedAt": "2026-04-15T12:18:00Z",
+      "files": [
+        "demo_app/src/orders/build-summary.ts",
+        "demo_app/src/orders/quote-adapter.ts"
+      ]
+    }
+  ],
+  "constraints": [
+    "Keep the fix limited to summary and quote-shape handling.",
+    "Do not introduce a runtime schema library for the demo app."
+  ],
+  "acceptanceCriteria": [
+    "The failing fixture no longer throws when taxes is null or omitted.",
+    "The healthy fixture still computes the same grand total.",
+    "Order summary rendering tolerates optional upstream fields."
+  ]
+}

@@ -1,0 +1,8 @@
+id: incident-auth-session-002
+title: Session refresh returns expired bearer token after idle tab resume
+match:
+  service: auth-gateway
+  incident_class: auth-token-session-failure
+  winning_worker: diagnosis_auth
+fix_strategy: safe_fix
+demo_summary: Best combination of clear fix scope and explicit verification plan.

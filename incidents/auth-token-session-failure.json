@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "incidentId": "incident-auth-session-002",
+  "title": "Session refresh returns expired bearer token after idle tab resume",
+  "incidentClass": "auth-token-session-failure",
+  "service": "auth-gateway",
+  "environment": "staging",
+  "severity": "sev-2",
+  "repoRoot": "demo_app/",
+  "summary": {
+    "symptom": "Users returning to an idle tab see a 401 loop because the refresh endpoint reissues the old access token instead of rotating it.",
+    "customerImpact": "Authenticated sessions silently fail after 30 minutes of inactivity and require a hard logout to recover.",
+    "firstObservedAt": "2026-04-15T07:42:00Z",
+    "customerVisible": true
+  },
+  "suspectedFiles": [
+    "demo_app/src/auth/refresh-session.ts",
+    "demo_app/src/auth/token-store.ts",
+    "demo_app/src/middleware/require-session.ts"
+  ],
+  "evidence": {
+    "stackTraces": [
+      {
+        "source": "auth-gateway",
+        "errorType": "SessionRefreshError",
+        "message": "issued access token expires before downstream validation window",
+        "frames": [
+          {
+            "file": "demo_app/src/auth/refresh-session.ts",
+            "line": 61,
+            "column": 17,
+            "function": "refreshSession"
+          },
+          {
+            "file": "demo_app/src/middleware/require-session.ts",
+            "line": 42,
+            "column": 11,
+            "function": "requireSession"
+          }
+        ]
+      }
+    ],
+    "logs": [
+      {
+        "source": "web-client",
+        "observedAt": "2026-04-15T07:42:03Z",
+        "level": "warn",
+        "message": "Refresh succeeded but retry still received 401",
+        "context": {
+          "userId": "user_108",
+          "sessionId": "sess_c83a",
+          "requestId": "req_refresh_71"
+        }
+      },
+      {
+        "source": "auth-gateway",
+        "observedAt": "2026-04-15T07:42:03Z",
+        "level": "error",
+        "message": "Rotated session reused prior token fingerprint",
+        "context": {
+          "sessionId": "sess_c83a",
+          "fingerprint": "fp_prev_18",
+          "expiresInSeconds": -24
+        }
+      }
+    ],
+    "metrics": [
+      {
+        "name": "auth.refresh_401_rate",
+        "unit": "ratio",
+        "value": 0.37,
+        "observedAt": "2026-04-15T07:45:00Z",
+        "baselineValue": 0.01
+      },
+      {
+        "name": "auth.forced_logouts",
+        "unit": "count",
+        "value": 19,
+        "observedAt": "2026-04-15T07:45:00Z",
+        "baselineValue": 1
+      }
+    ]
+  },
+  "commands": {
+    "failing": {
+      "label": "Idle-tab auth refresh repro",
+      "command": "pnpm tsx demo_app/scripts/repro-auth-refresh.ts --idle-minutes 30",
+      "workingDirectory": ".",
+      "expectedExitCode": 1
+    },
+    "healthy": {
+      "label": "Fresh session auth sanity",
+      "command": "pnpm tsx demo_app/scripts/repro-auth-refresh.ts --idle-minutes 1",
+      "workingDirectory": ".",
+      "expectedExitCode": 0
+    }
+  },
+  "recentChanges": [
+    {
+      "commit": "b1940f2",
+      "summary": "Unify mobile and web refresh-session code path to reduce duplicate auth logic",
+      "author": "sourabh",
+      "mergedAt": "2026-04-14T21:10:00Z",
+      "files": [
+        "demo_app/src/auth/refresh-session.ts",
+        "demo_app/src/auth/token-store.ts"
+      ]
+    }
+  ],
+  "constraints": [
+    "Keep the demo fix inside auth/session code paths.",
+    "Do not replace the token format or add a new auth provider."
+  ],
+  "acceptanceCriteria": [
+    "Idle-session refresh returns a newly valid access token.",
+    "The failing repro no longer loops on 401.",
+    "Recent-session sanity flow still succeeds."
+  ]
+}

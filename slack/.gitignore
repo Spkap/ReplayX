@@ -1,0 +1,43 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.vite/
+.turbo/
+.cache/
+
+# Test output
+coverage/
+.nyc_output/
+
+# TypeScript
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env*.example
+
+# Local tooling
+.vercel/
+.idea/
+.vscode/
+
+# Temporary files
+tmp/
+temp/
+*.tmp

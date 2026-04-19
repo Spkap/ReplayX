@@ -1,0 +1,8 @@
+id: incident-checkout-race-001
+title: Checkout confirms orders before inventory reservation settles
+match:
+  service: checkout-api
+  incident_class: checkout-race-condition
+  winning_worker: diagnosis_concurrency
+fix_strategy: safe_fix
+demo_summary: Best balance of safety and clarity among the proposed fixes.
