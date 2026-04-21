@@ -7,8 +7,16 @@ import { pathToFileURL } from "node:url";
 
 import liveRunsModule from "../dashboard/lib/live-runs.js";
 
-const { cancelReplayXRun, createReplayXRun, getReplayXAnalytics, getReplayXRun, runReplayXLivePipeline } =
-  liveRunsModule as typeof import("../dashboard/lib/live-runs.js");
+const {
+  archiveReplayXRun,
+  cancelReplayXRun,
+  createReplayXRun,
+  getReplayXAnalytics,
+  getReplayXRun,
+  listReplayXRuns,
+  retryReplayXRun,
+  runReplayXLivePipeline
+} = liveRunsModule as typeof import("../dashboard/lib/live-runs.js");
 
 test("live run store creates a Slack-sourced run and completes the ReplayX phase flow", async () => {
   const tempRepo = await mkdtemp(path.join(os.tmpdir(), "replayx-live-run-"));
@@ -225,6 +233,97 @@ test("cancelled runs remain cancelled when the live pipeline is invoked again", 
 
     assert.equal(rerun.status, "cancelled");
     assert.equal(rerun.currentBlocker, "Run cancelled by operator.");
+  } finally {
+    await rm(tempRepo, { recursive: true, force: true });
+  }
+});
+
+test("archived terminal runs stay readable, disappear from the live fleet, and remain in historical analytics", async () => {
+  const tempRepo = await mkdtemp(path.join(os.tmpdir(), "replayx-archived-"));
+  const options = {
+    repoRoot: process.cwd(),
+    runStoreRoot: path.join(tempRepo, ".replayx-runs"),
+    artifactsRoot: path.join(tempRepo, "artifacts"),
+    phaseDelayMs: 0
+  };
+
+  try {
+    const run = await createReplayXRun(
+      {
+        source: "manual",
+        text: "checkout is overselling inventory when two users buy at the same time"
+      },
+      options
+    );
+
+    await runReplayXLivePipeline(run.runId, options);
+    const archivedRun = await archiveReplayXRun(run.runId, options);
+
+    assert.ok(archivedRun.archivedAt);
+    assert.equal(archivedRun.archivedBy, "operator");
+
+    const visibleRuns = await listReplayXRuns(options);
+    const allRuns = await listReplayXRuns({ ...options, includeArchived: true });
+    const analytics = await getReplayXAnalytics(options);
+    const storedRun = await getReplayXRun(run.runId, options);
+
+    assert.equal(visibleRuns.length, 0);
+    assert.equal(allRuns.length, 1);
+    assert.equal(analytics.totalRuns, 1);
+    assert.equal(analytics.visibleRuns, 0);
+    assert.equal(analytics.archivedRuns, 1);
+    assert.ok(storedRun.archivedAt);
+  } finally {
+    await rm(tempRepo, { recursive: true, force: true });
+  }
+});
+
+test("archived runs are read-only and cannot be retried", async () => {
+  const tempRepo = await mkdtemp(path.join(os.tmpdir(), "replayx-archived-read-only-"));
+  const options = {
+    repoRoot: process.cwd(),
+    runStoreRoot: path.join(tempRepo, ".replayx-runs"),
+    artifactsRoot: path.join(tempRepo, "artifacts"),
+    phaseDelayMs: 0
+  };
+
+  try {
+    const run = await createReplayXRun(
+      {
+        source: "manual",
+        text: "checkout is overselling inventory when two users buy at the same time"
+      },
+      options
+    );
+
+    await runReplayXLivePipeline(run.runId, options);
+    await archiveReplayXRun(run.runId, options);
+
+    await assert.rejects(retryReplayXRun(run.runId, options), /cannot retry an archived run/i);
+  } finally {
+    await rm(tempRepo, { recursive: true, force: true });
+  }
+});
+
+test("ReplayX rejects archive requests for non-terminal runs", async () => {
+  const tempRepo = await mkdtemp(path.join(os.tmpdir(), "replayx-archive-reject-"));
+  const options = {
+    repoRoot: process.cwd(),
+    runStoreRoot: path.join(tempRepo, ".replayx-runs"),
+    artifactsRoot: path.join(tempRepo, "artifacts"),
+    phaseDelayMs: 0
+  };
+
+  try {
+    const run = await createReplayXRun(
+      {
+        source: "manual",
+        text: "checkout is overselling inventory when two users buy at the same time"
+      },
+      options
+    );
+
+    await assert.rejects(archiveReplayXRun(run.runId, options), /archive only terminal runs/i);
   } finally {
     await rm(tempRepo, { recursive: true, force: true });
   }

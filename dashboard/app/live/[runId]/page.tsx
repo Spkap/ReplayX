@@ -1,8 +1,11 @@
 import { getReplayXRun } from "../../../lib/live-runs";
 import {
   controlPlaneAuthRequired,
+  getControlPlaneAccessPayload,
   isControlPlaneAccessTokenValid
 } from "../../../lib/control-plane-auth";
+import { unauthorizedControlPlaneError } from "../../../lib/control-plane-errors";
+import { ControlPlaneErrorPanel } from "../../../components/control-plane-error-panel";
 import { LiveRunClient } from "./live-run-client";
 
 export default async function LiveRunPage({
@@ -22,16 +25,25 @@ export default async function LiveRunPage({
   ) {
     return (
       <main className="shell replay-shell">
-        <article className="workspace-panel">
-          <span className="section-kicker">Unauthorized</span>
-          <h2>This ReplayX run requires a signed operator link</h2>
-          <p className="ghost-text">Open the run from Slack or an authenticated internal control-plane link.</p>
-        </article>
+        <ControlPlaneErrorPanel
+          kicker="Unauthorized"
+          title="This ReplayX run requires a signed operator link"
+          problem={unauthorizedControlPlaneError("This ReplayX run")}
+        />
       </main>
     );
   }
 
   const initialRun = await getReplayXRun(runId).catch(() => null);
+  const controlPlaneAccessToken =
+    getControlPlaneAccessPayload(accessToken)?.scope === "control-plane" ? accessToken : null;
 
-  return <LiveRunClient runId={runId} initialRun={initialRun} accessToken={accessToken} />;
+  return (
+    <LiveRunClient
+      runId={runId}
+      initialRun={initialRun}
+      accessToken={accessToken}
+      controlPlaneAccessToken={controlPlaneAccessToken}
+    />
+  );
 }

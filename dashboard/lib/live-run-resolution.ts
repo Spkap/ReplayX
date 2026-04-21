@@ -234,20 +234,23 @@ const cloneWorkspaceForSandbox = async (repoRoot: string): Promise<{ sandboxRoot
   return { sandboxRoot, cleanupRoot };
 };
 
-const shouldCreateLivePullRequest = (): boolean => {
-  if (process.env.REPLAYX_GITHUB_PR_MODE === "preview") {
+export const shouldCreateLivePullRequest = ({
+  env = process.env,
+  execArgv = process.execArgv
+}: {
+  env?: NodeJS.ProcessEnv;
+  execArgv?: string[];
+} = {}): boolean => {
+  const runningUnderNodeTest =
+    env.NODE_ENV === "test" ||
+    env.NODE_TEST_CONTEXT !== undefined ||
+    execArgv.some((argument) => argument === "--test" || argument.startsWith("--test-"));
+
+  if (runningUnderNodeTest) {
     return false;
   }
 
-  if (process.env.REPLAYX_GITHUB_PR_MODE === "live") {
-    return true;
-  }
-
-  if (process.env.NODE_ENV === "test" || process.argv.includes("--test")) {
-    return false;
-  }
-
-  return true;
+  return env.REPLAYX_GITHUB_PR_MODE === "live";
 };
 
 const createGithubPullRequest = async ({

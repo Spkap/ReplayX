@@ -1,7 +1,31 @@
 import Link from "next/link";
+import {
+  buildAuthorizedPath,
+  buildControlPlaneAccessToken,
+  controlPlaneAuthRequired,
+  getControlPlaneAccessPayload
+} from "../lib/control-plane-auth";
+import { listReplayXRuns, selectFeaturedProofRun } from "../lib/live-runs";
 import { GOLDEN_INCIDENT_ID, listReplayIncidents, loadReplayIncidentBundle } from "../lib/replay-data";
 
-export default async function HomePage() {
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+export default async function HomePage({
+  searchParams
+}: {
+  searchParams?: Promise<{ access?: string }>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const requestedAccessToken = resolvedSearchParams.access ?? null;
+  const authRequired = controlPlaneAuthRequired();
+  const accessPayload = getControlPlaneAccessPayload(requestedAccessToken);
+  const controlPlaneAccessToken =
+    !authRequired
+      ? buildControlPlaneAccessToken({ scope: "control-plane" })
+      : accessPayload?.scope === "control-plane"
+        ? requestedAccessToken
+        : null;
   const incidents = await listReplayIncidents();
   let goldenBundle;
   try {
@@ -16,23 +40,57 @@ export default async function HomePage() {
 
   const productPillars = [
     {
-      title: "Live Incident Workspace",
-      body: "A run opens with repo, service, environment, state, and evidence already in view."
+      title: "Featured Proof",
+      body: "The public entrance shows the product earning trust with concrete replay evidence before any operator-only control surface appears."
     },
     {
-      title: "Ops Command Center",
-      body: "Track approvals, blocked runs, integration health, and fleet activity without leaving the product."
+      title: "Incident Workspace",
+      body: "A live run opens with repo, service, environment, blockers, validation evidence, and PR handoff already in view."
     },
     {
-      title: "Reliability Analytics",
-      body: "Watch MTTR, validation quality, operator intervention, and memory performance move over time."
+      title: "Ops + Analytics",
+      body: "Signed operator surfaces track the active fleet while preserving historical truth for reliability and learning metrics."
     }
   ];
+
+  const liveRuns = !authRequired || controlPlaneAccessToken ? await listReplayXRuns() : [];
+  const latestLiveRun = liveRuns.find((run) => run.origin === "live-run") ?? null;
+  const featuredProofRun = selectFeaturedProofRun(liveRuns);
+  const homePath = buildAuthorizedPath("/", controlPlaneAccessToken);
+  const opsPath = buildAuthorizedPath("/ops", controlPlaneAccessToken);
+  const analyticsPath = buildAuthorizedPath("/analytics", controlPlaneAccessToken);
+  const featuredProofPath = featuredProofRun
+    ? buildAuthorizedPath(`/live/${featuredProofRun.runId}`, controlPlaneAccessToken)
+    : `/incidents/${GOLDEN_INCIDENT_ID}`;
+  const latestLivePath = latestLiveRun
+    ? buildAuthorizedPath(`/live/${latestLiveRun.runId}`, controlPlaneAccessToken)
+    : null;
+  const controlPlaneStatus = authRequired
+    ? controlPlaneAccessToken
+      ? "Signed operator session"
+      : "Public proof entry"
+    : "Live run + ops ready";
+  const featuredProofTitle = featuredProofRun?.issue.text ?? goldenBundle.incident.title;
+  const featuredProofSummary =
+    featuredProofRun?.cards.proof.regression_summary ?? goldenBundle.incident.summary.symptom;
+  const featuredProofMeta = featuredProofRun
+    ? [
+        { label: "Run", value: featuredProofRun.runId },
+        { label: "Status", value: featuredProofRun.status.replaceAll("_", " ") },
+        { label: "Repo", value: featuredProofRun.repoTarget },
+        { label: "Outcome", value: featuredProofRun.pullRequest.url ? "Validated PR" : "Validated bundle" }
+      ]
+    : [
+        { label: "Service", value: goldenBundle.incident.service },
+        { label: "Severity", value: goldenBundle.incident.severity.toUpperCase() },
+        { label: "Workers", value: `${goldenBundle.diagnosis?.worker_count ?? 0} active` },
+        { label: "Outcome", value: "PR-ready validation" }
+      ];
 
   return (
     <main className="shell shell-home">
       <header className="site-header">
-        <Link className="brand" href="/">
+        <Link className="brand" href={homePath}>
           <span className="brand-mark">RX</span>
           <div className="brand-copy">
             <strong>ReplayX</strong>
@@ -41,80 +99,80 @@ export default async function HomePage() {
         </Link>
         <div className="site-status">
           <span className="site-status-label">Control plane</span>
-          <span className="site-status-value">Live run + ops ready</span>
+          <span className="site-status-value">{controlPlaneStatus}</span>
         </div>
       </header>
 
       <section className="hero fade-in">
         <div className="hero-copy">
-          <span className="hero-kicker">Slack-native incident workspace</span>
-          <h1>Resolve production issues without losing the plot.</h1>
+          <span className="hero-kicker">Proof-first incident response</span>
+          <h1>Show the evidence first. Open the operator surfaces second.</h1>
           <p>
             ReplayX turns a Slack report into a live investigation, a validated patch path,
-            and a PR-ready outcome with evidence attached the whole way through.
+            and a PR-ready outcome with evidence attached the whole way through. Home stays safe
+            and proof-first; signed links unlock the fleet, approvals, and analytics.
           </p>
           <div className="hero-actions">
-            <Link className="button button-primary" href="/ops">
-              Open Control Plane
+            <Link className="button button-primary" href={featuredProofPath}>
+              Open Featured Proof
             </Link>
-            <Link className="button button-secondary" href={`/live/run_mo63kvd1_bxj27x`}>
-              View Live Incident
+            <Link className="button button-secondary" href={`#incident-list`}>
+              Browse Incident Library
             </Link>
-            <Link className="button button-secondary" href="/analytics">
-              Inspect Analytics
-            </Link>
+            {latestLivePath && latestLiveRun?.runId !== featuredProofRun?.runId ? (
+              <Link className="button button-secondary" href={latestLivePath}>
+                Open Latest Live Run
+              </Link>
+            ) : null}
           </div>
           <div className="hero-ledger">
             <div className="ledger-item">
               <span>Surface</span>
-              <strong>Slack → Workspace → PR</strong>
+              <strong>Proof → Workspace → PR</strong>
             </div>
             <div className="ledger-item">
-              <span>Engine</span>
-              <strong>Codex-first control plane</strong>
+              <span>Operator access</span>
+              <strong>{controlPlaneStatus}</strong>
             </div>
             <div className="ledger-item">
               <span>Trust model</span>
-              <strong>Evidence before memory</strong>
+              <strong>Evidence before memory, history before vanity</strong>
             </div>
           </div>
         </div>
         <div className="hero-rail">
           <div className="hero-surface">
-            <span className="section-kicker">Featured incident</span>
-            <h2>{goldenBundle.incident.title}</h2>
-            <p>{goldenBundle.incident.summary.symptom}</p>
+            <span className="section-kicker">Featured Proof</span>
+            <h2>{featuredProofTitle}</h2>
+            <p>{featuredProofSummary}</p>
             <div className="worker-meta" style={{ marginTop: '2rem' }}>
-              <div>
-                <dt>Service</dt>
-                <dd>{goldenBundle.incident.service}</dd>
-              </div>
-              <div>
-                <dt>Severity</dt>
-                <dd className="pill-danger" style={{ display: 'inline-block', padding: '2px 8px', borderRadius: '4px' }}>
-                  {goldenBundle.incident.severity.toUpperCase()}
-                </dd>
-              </div>
-              <div>
-                <dt>Workers</dt>
-                <dd>{goldenBundle.diagnosis?.worker_count ?? 0} active</dd>
-              </div>
-              <div>
-                <dt>Outcome</dt>
-                <dd>PR-ready validation</dd>
-              </div>
+              {featuredProofMeta.map((item) => (
+                <div key={item.label}>
+                  <dt>{item.label}</dt>
+                  <dd>{item.value}</dd>
+                </div>
+              ))}
             </div>
           </div>
           <div className="panel">
-            <span className="section-kicker">What changes for the team</span>
+            <span className="section-kicker">Operator surfaces</span>
             <p>
-              The product is no longer just a replay. It now carries live run state, approvals, PR handoff,
-              and reusable memory through one operational surface.
+              Ops and Analytics stay behind signed links. The homepage stays public and proof-first so the
+              product explains itself before it asks for operator trust.
             </p>
             <div className="rail-actions" style={{ marginTop: "1rem" }}>
-              <Link className="ghost-link" href={`/incidents/${GOLDEN_INCIDENT_ID}`}>
-                Open replay
-              </Link>
+              {controlPlaneAccessToken ? (
+                <>
+                  <Link className="ghost-link" href={opsPath}>
+                    Open Ops
+                  </Link>
+                  <Link className="ghost-link" href={analyticsPath}>
+                    Open Analytics
+                  </Link>
+                </>
+              ) : (
+                <span className="ghost-text">Open from a signed operator link to access the live fleet and analytics.</span>
+              )}
             </div>
           </div>
         </div>
@@ -143,7 +201,8 @@ export default async function HomePage() {
           <h2>Built for operators, not spectators</h2>
           <p>
             Incident products usually split coordination, evidence, and resolution across too many tabs and too much chrome.
-            ReplayX should keep the state obvious, the evidence close, and the next action unmistakable.
+            ReplayX keeps the state obvious, the evidence close, and the next action unmistakable without making
+            the homepage depend on privileged operator access.
           </p>
         </div>
         <div className="ops-grid-2">

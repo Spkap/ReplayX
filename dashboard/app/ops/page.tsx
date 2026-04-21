@@ -1,12 +1,46 @@
 import Link from "next/link";
 
+import {
+  buildAuthorizedPath,
+  buildControlPlaneAccessToken,
+  controlPlaneAuthRequired,
+  isControlPlaneAccessTokenValid
+} from "../../lib/control-plane-auth";
+import { unauthorizedControlPlaneError } from "../../lib/control-plane-errors";
+import { ControlPlaneErrorPanel } from "../../components/control-plane-error-panel";
 import { listReplayXRuns } from "../../lib/live-runs";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export default async function OpsPage() {
-  const runs = (await listReplayXRuns()).filter((run) => run.origin === "live-run");
+export default async function OpsPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ access?: string }>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const accessToken = resolvedSearchParams.access ?? null;
+
+  if (
+    controlPlaneAuthRequired() &&
+    !isControlPlaneAccessTokenValid(accessToken, { scope: "control-plane" })
+  ) {
+    return (
+      <main className="shell replay-shell">
+        <ControlPlaneErrorPanel
+          kicker="Unauthorized"
+          title="This ReplayX control-plane page requires a signed operator link"
+          problem={unauthorizedControlPlaneError("This ReplayX control-plane page")}
+        />
+      </main>
+    );
+  }
+
+  const controlPlaneAccessToken = accessToken ?? buildControlPlaneAccessToken({ scope: "control-plane" });
+  const homePath = buildAuthorizedPath("/", controlPlaneAccessToken);
+  const allRuns = (await listReplayXRuns({ includeArchived: true })).filter((run) => run.origin === "live-run");
+  const runs = allRuns.filter((run) => run.archivedAt === null);
+  const archivedCount = allRuns.length - runs.length;
   const activeRuns = runs.filter((run) =>
     ["queued", "triaging", "reproducing", "diagnosing", "patching", "validating", "awaiting_approval", "opening_pr"].includes(
       run.status
@@ -24,13 +58,16 @@ export default async function OpsPage() {
     <main className="shell replay-shell">
       <header className="replay-header">
         <div>
-          <Link className="ghost-link" href="/">
+          <Link className="ghost-link" href={homePath}>
             ← Back to home
           </Link>
           <span className="eyebrow">Ops Command Center</span>
           <h1>See the incident fleet at a glance</h1>
           <p className="lead">
             Watch active work, blocked paths, approvals, and degraded integrations without digging through individual run pages.
+          </p>
+          <p className="ghost-text">
+            Archived runs stay preserved off the live board. Historical analytics still count them. Current archived count: {archivedCount}.
           </p>
         </div>
       </header>
@@ -68,7 +105,11 @@ export default async function OpsPage() {
             <div className="ops-stack">
               {activeRuns.length > 0 ? (
                 activeRuns.map((run) => (
-                  <Link className="ops-row" key={run.runId} href={`/live/${run.runId}`}>
+                  <Link
+                    className="ops-row"
+                    key={run.runId}
+                    href={buildAuthorizedPath(`/live/${run.runId}`, controlPlaneAccessToken)}
+                  >
                     <div className="ops-row-head">
                       <div>
                         <span className="section-kicker">{run.workspaceId}</span>
@@ -158,8 +199,17 @@ export default async function OpsPage() {
                   </div>
                   <p>{run.currentBlocker ?? run.error ?? "No blocker recorded."}</p>
                   <div className="rail-actions" style={{ marginTop: "0.75rem" }}>
-                    <Link className="ghost-link" href={`/live/${run.runId}`}>
+                    <Link
+                      className="ghost-link"
+                      href={buildAuthorizedPath(`/live/${run.runId}`, controlPlaneAccessToken)}
+                    >
                       Open incident
+                    </Link>
+                    <Link
+                      className="ghost-link"
+                      href={buildAuthorizedPath(`/runs/${run.runId}/actions/archive`, controlPlaneAccessToken)}
+                    >
+                      Archive run
                     </Link>
                   </div>
                 </article>

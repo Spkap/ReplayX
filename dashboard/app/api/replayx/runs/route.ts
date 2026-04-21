@@ -4,13 +4,21 @@ import {
   startReplayXLivePipelineDetached
 } from "../../../../lib/live-runs";
 import { buildAuthorizedPath, buildControlPlaneAccessToken, isAuthorizedRequest } from "../../../../lib/control-plane-auth";
+import {
+  buildControlPlaneErrorResponse,
+  invalidRunRequestControlPlaneError,
+  unauthorizedControlPlaneError
+} from "../../../../lib/control-plane-errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   if (!isAuthorizedRequest(request, { scope: "workspace", workspaceId: "workspace-default" })) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return buildControlPlaneErrorResponse(
+      unauthorizedControlPlaneError("ReplayX run creation"),
+      401
+    );
   }
 
   const body = (await request.json().catch(() => null)) as {
@@ -29,7 +37,7 @@ export async function POST(request: Request) {
   } | null;
 
   if (!body?.text || typeof body.text !== "string") {
-    return Response.json({ error: "text is required" }, { status: 400 });
+    return buildControlPlaneErrorResponse(invalidRunRequestControlPlaneError(), 400);
   }
 
   let run: Awaited<ReturnType<typeof createReplayXRun>>;
@@ -80,7 +88,8 @@ export async function POST(request: Request) {
       actionPaths: {
         approve: buildAuthorizedPath(`/runs/${run.runId}/actions/approve`, accessToken),
         retry: buildAuthorizedPath(`/runs/${run.runId}/actions/retry`, accessToken),
-        cancel: buildAuthorizedPath(`/runs/${run.runId}/actions/cancel`, accessToken)
+        cancel: buildAuthorizedPath(`/runs/${run.runId}/actions/cancel`, accessToken),
+        archive: buildAuthorizedPath(`/runs/${run.runId}/actions/archive`, accessToken)
       }
     },
     { status: 201 }

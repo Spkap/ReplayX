@@ -11,7 +11,11 @@ type WorkspaceScope = {
   workspaceId: string;
 };
 
-type ControlPlaneScope = RunScope | WorkspaceScope;
+type ControlPlaneRootScope = {
+  scope: "control-plane";
+};
+
+type ControlPlaneScope = RunScope | WorkspaceScope | ControlPlaneRootScope;
 
 type AccessPayload = ControlPlaneScope & {
   exp: number;
@@ -46,7 +50,48 @@ const parsePayload = (token: string): AccessPayload | null => {
   }
 };
 
+const getValidatedPayload = (token: string | null | undefined): AccessPayload | null => {
+  const secret = getSharedSecret();
+
+  if (!secret || !token) {
+    return null;
+  }
+
+  const [encodedPayload, signature] = token.split(".", 2);
+
+  if (!encodedPayload || !signature) {
+    return null;
+  }
+
+  const expectedSignature = signValue(encodedPayload, secret);
+  const signatureBuffer = Buffer.from(signature, "utf8");
+  const expectedBuffer = Buffer.from(expectedSignature, "utf8");
+
+  if (
+    signatureBuffer.length !== expectedBuffer.length ||
+    !timingSafeEqual(signatureBuffer, expectedBuffer)
+  ) {
+    return null;
+  }
+
+  const payload = parsePayload(token);
+
+  if (!payload || payload.exp < Date.now()) {
+    return null;
+  }
+
+  return payload;
+};
+
 const scopesMatch = (payload: AccessPayload, expected: ControlPlaneScope): boolean => {
+  if (payload.scope === "control-plane") {
+    return true;
+  }
+
+  if (expected.scope === "control-plane") {
+    return false;
+  }
+
   if (payload.scope !== expected.scope) {
     return false;
   }
@@ -84,36 +129,13 @@ export const isControlPlaneAccessTokenValid = (
   token: string | null | undefined,
   expected: ControlPlaneScope
 ): boolean => {
-  const secret = getSharedSecret();
-
-  if (!secret) {
+  if (!getSharedSecret()) {
     return true;
   }
 
-  if (!token) {
-    return false;
-  }
+  const payload = getValidatedPayload(token);
 
-  const [encodedPayload, signature] = token.split(".", 2);
-
-  if (!encodedPayload || !signature) {
-    return false;
-  }
-
-  const expectedSignature = signValue(encodedPayload, secret);
-  const signatureBuffer = Buffer.from(signature, "utf8");
-  const expectedBuffer = Buffer.from(expectedSignature, "utf8");
-
-  if (
-    signatureBuffer.length !== expectedBuffer.length ||
-    !timingSafeEqual(signatureBuffer, expectedBuffer)
-  ) {
-    return false;
-  }
-
-  const payload = parsePayload(token);
-
-  if (!payload || payload.exp < Date.now()) {
+  if (!payload) {
     return false;
   }
 
@@ -140,3 +162,13 @@ export const getAccessQueryParam = (accessToken: string | null): string =>
 
 export const buildAuthorizedPath = (pathname: string, accessToken: string | null): string =>
   accessToken ? `${pathname}${getAccessQueryParam(accessToken)}` : pathname;
+
+export const getControlPlaneAccessPayload = (
+  token: string | null | undefined
+): AccessPayload | null => getValidatedPayload(token);
+
+export const hasRootControlPlaneAccess = (token: string | null | undefined): boolean =>
+  getControlPlaneAccessPayload(token)?.scope === "control-plane";
+
+export const buildControlPlanePath = (pathname: string): string =>
+  buildAuthorizedPath(pathname, buildControlPlaneAccessToken({ scope: "control-plane" }));

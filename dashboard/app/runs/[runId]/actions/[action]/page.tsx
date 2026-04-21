@@ -1,17 +1,23 @@
 import { getReplayXRun } from "../../../../../lib/live-runs";
 import {
   controlPlaneAuthRequired,
+  getControlPlaneAccessPayload,
   isControlPlaneAccessTokenValid
 } from "../../../../../lib/control-plane-auth";
+import {
+  runNotFoundControlPlaneError,
+  unauthorizedControlPlaneError
+} from "../../../../../lib/control-plane-errors";
+import { ControlPlaneErrorPanel } from "../../../../../components/control-plane-error-panel";
 import { ActionPageClient } from "./action-page-client";
 
-const allowedActions = new Set(["approve", "retry", "cancel"]);
+const allowedActions = new Set(["approve", "retry", "cancel", "archive"]);
 
 export default async function RunActionPage({
   params,
   searchParams
 }: {
-  params: Promise<{ runId: string; action: "approve" | "retry" | "cancel" }>;
+  params: Promise<{ runId: string; action: "approve" | "retry" | "cancel" | "archive" }>;
   searchParams?: Promise<{ access?: string }>;
 }) {
   const { runId, action } = await params;
@@ -35,27 +41,37 @@ export default async function RunActionPage({
   ) {
     return (
       <main className="shell replay-shell">
-        <article className="workspace-panel">
-          <span className="section-kicker">Unauthorized</span>
-          <h2>This ReplayX action requires a signed operator link</h2>
-          <p className="ghost-text">Open the action from Slack or another authenticated ReplayX entrypoint.</p>
-        </article>
+        <ControlPlaneErrorPanel
+          kicker="Unauthorized"
+          title="This ReplayX action requires a signed operator link"
+          problem={unauthorizedControlPlaneError("This ReplayX action")}
+        />
       </main>
     );
   }
 
   const run = await getReplayXRun(runId).catch(() => null);
+  const controlPlaneAccessToken =
+    getControlPlaneAccessPayload(accessToken)?.scope === "control-plane" ? accessToken : null;
 
   if (!run) {
     return (
       <main className="shell replay-shell">
-        <article className="workspace-panel">
-          <span className="section-kicker">Missing run</span>
-          <h2>ReplayX could not find that run</h2>
-        </article>
+        <ControlPlaneErrorPanel
+          kicker="Missing run"
+          title="ReplayX could not find that run"
+          problem={runNotFoundControlPlaneError(runId)}
+        />
       </main>
     );
   }
 
-  return <ActionPageClient action={action} run={run} accessToken={accessToken} />;
+  return (
+    <ActionPageClient
+      action={action}
+      run={run}
+      accessToken={accessToken}
+      controlPlaneAccessToken={controlPlaneAccessToken}
+    />
+  );
 }

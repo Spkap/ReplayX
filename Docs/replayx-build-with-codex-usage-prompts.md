@@ -719,7 +719,7 @@ Verification:
 
 ### Phase 11 Current State
 
-The dashboard now exists as a Next.js replay-first UI for the golden incident.
+The dashboard now exists as a Next.js proof-first UI with a public featured-proof entrance and live/operator surfaces behind signed links.
 
 The remaining work in this phase is visual polish, state-transition polish, and optional replay/event refinements.
 
@@ -761,7 +761,7 @@ Verification:
 
 ### Phase 11.5 Current State
 
-The dashboard is replay-first from saved artifacts, which is the required stable path for the hackathon demo.
+The dashboard stays proof-first from the homepage and still supports replay from saved artifacts as the stable fallback path for the hackathon demo.
 
 Saved event-stream playback is still optional polish, not a blocker, because the replay artifact already provides the reliable demo mode.
 

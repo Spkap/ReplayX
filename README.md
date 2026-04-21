@@ -26,9 +26,13 @@ The dashboard is the main product surface. Slack is the intake trigger. The `dem
 
 ## Product Modes
 
+### Featured proof
+
+`/` is the public, proof-first entrance. It highlights a validated replay or the latest validated live run when an operator session is already present.
+
 ### Live run
 
-1. A user reports a bug in Slack.
+1. A user reports a bug in Slack or creates a run manually.
 2. ReplayX starts a live incident run.
 3. The dashboard updates in real time as the orchestrator advances through all 8 phases.
 4. The run ends with a postmortem and a reusable skill artifact.
@@ -37,7 +41,7 @@ The dashboard is the main product surface. Slack is the intake trigger. The `dem
 
 Precomputed artifacts drive a stable fallback at `/replay/incident-checkout-race-001`. Use this as a safety net or when you need a no-risk demo path.
 
-For most demos, **start with the live run path**.
+For most demos, start on `/`, open the featured proof, then move into live or operator surfaces only when needed.
 
 ---
 
@@ -103,7 +107,26 @@ pnpm --dir dashboard install
 npm --prefix slack install
 ```
 
-### 2. Start the broken app
+### 2. Start the local proof-first stack
+
+```bash
+pnpm dev:all
+```
+
+This launches:
+
+- demo app at `http://127.0.0.1:4311`
+- dashboard at `http://localhost:3001`
+
+To include Slack intake in the same loop:
+
+```bash
+pnpm dev:all:slack
+```
+
+### 3. Start the broken app manually
+
+If you prefer separate terminals:
 
 ```bash
 pnpm demo-app
@@ -111,15 +134,15 @@ pnpm demo-app
 
 Demo app: `http://127.0.0.1:4311/`
 
-### 3. Start the dashboard
+### 4. Start the dashboard manually
 
 ```bash
-pnpm --dir dashboard dev -- --port 3001
+pnpm dashboard:dev
 ```
 
 Dashboard: `http://localhost:3001/`
 
-### 4. Start Slack intake
+### 5. Start Slack intake
 
 ```bash
 npm --prefix slack start
@@ -127,7 +150,7 @@ npm --prefix slack start
 
 Slack service: `http://localhost:3000/`
 
-### 5. Trigger a live run
+### 6. Trigger a live run
 
 In your Slack `#bugs` channel:
 
@@ -136,6 +159,16 @@ In your Slack `#bugs` channel:
 ```
 
 The bot returns a live dashboard URL. Click it to watch the orchestrator advance in real time.
+
+### Optional — manual no-Slack live run
+
+```bash
+curl -s -X POST http://localhost:3001/api/replayx/runs \
+  -H 'content-type: application/json' \
+  --data '{"source":"manual","text":"checkout is overselling stock during concurrent orders"}'
+```
+
+Open the returned `livePath` for the operator workspace. `/` remains the proof-first public entrance; `/ops` and `/analytics` require signed operator links when auth is enabled.
 
 ### Optional — precompute the replay fallback
 
@@ -200,7 +233,21 @@ ReplayX/
 - The golden path is optimized for the three bundled incident classes. Adding a new class requires extending the diagnosis, challenger, and fix phase files — see the [incident authoring guide](Docs/replayx-incident-authoring-guide.md).
 - Live runs use WebSockets for dashboard updates, with SSE as the fallback transport.
 - Fix verification plans are produced but the patch is not auto-applied. The review phase outputs a verification command, not an executed result.
-- GitHub PR creation is available as a runtime capability but requires environment configuration.
+- ReplayX writes a PR preview bundle by default. Set `REPLAYX_GITHUB_PR_MODE=live` only in environments that are configured for real GitHub pushes and PR creation.
+
+## Troubleshooting
+
+- Signed operator links: when `REPLAYX_INTERNAL_API_TOKEN` is set, `/ops`, `/analytics`, live incident workspaces, and action pages require signed links. `/` stays public. See `/help/troubleshooting#signed-links`.
+- Run not found: this usually means the link points at a different `.replayx-control-plane` store than the dashboard is reading. See `/help/troubleshooting#run-not-found`.
+- Archived runs: archive removes a terminal run from the live fleet, but keeps it readable and preserved in historical analytics. Archived runs are intentionally read-only. See `/help/troubleshooting#archived-runs`.
+- Local stack: use `pnpm dev:all` for the shortest local path, and `pnpm dev:all:slack` when you also need Slack intake. See `/help/troubleshooting#local-stack`.
+
+## Migration Notes
+
+- Homepage semantics changed from implicit live-run promotion to proof-first entry. `/` is now the public entrance, and signed operator surfaces are secondary.
+- Archived runs no longer disappear from historical analytics. They leave the live board, but they still count in truth-bearing metrics.
+- Run-scoped and workspace-scoped links no longer silently escalate into root operator scope.
+- The control-plane store remains `.replayx-control-plane/`, and operator errors now point at `/help/troubleshooting` for the concrete fix path.
 
 ---
 

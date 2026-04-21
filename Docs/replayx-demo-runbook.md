@@ -15,7 +15,8 @@ The best incident for this flow is the checkout race condition — it is concret
 
 | Mode | Description | When to use |
 |---|---|---|
-| **Live run** | Slack trigger → live orchestration → dashboard updates in real time | Primary. Use this for recruiter and judge demos. |
+| **Featured proof** | Public homepage → validated replay or latest validated run | Start here. It explains the product in under 60 seconds without requiring operator access. |
+| **Live run** | Slack trigger or manual API trigger → live orchestration → dashboard updates in real time | Primary operator demo after the proof entrance. |
 | **Replay** | Precomputed artifacts at `/replay/incident-checkout-race-001` | Fallback only. Use if live orchestration is unavailable. |
 
 ---
@@ -75,7 +76,19 @@ npm --prefix slack install
 
 ## Live Demo Setup
 
-Open **three** terminal tabs from the repo root.
+Fastest path from the repo root:
+
+```bash
+pnpm dev:all
+```
+
+That starts the demo app and dashboard without requiring Slack. Add Slack when you need the full intake story:
+
+```bash
+pnpm dev:all:slack
+```
+
+If you want separate terminals, open **three** tabs from the repo root.
 
 ### Terminal 1 — Target Demo App
 
@@ -123,7 +136,11 @@ Use this sequence during the screen share:
 
 Open the demo app at `http://127.0.0.1:4311`. Show the failing state for the checkout race condition. Keep this brief — the point is to make the incident feel real, not to stay in the broken app.
 
-### Step 2 — Slack Handoff (The Trigger)
+### Step 2 — Proof Entrance
+
+Open `http://localhost:3001/`. Use the featured proof to establish the product story before opening any privileged operator surface.
+
+### Step 3 — Slack Handoff (The Trigger)
 
 Go to your Slack workspace's bugs channel. Mention the ReplayX bot with a short bug report:
 
@@ -133,7 +150,7 @@ Go to your Slack workspace's bugs channel. Mention the ReplayX bot with a short 
 
 The bot acknowledges and returns a live dashboard handoff URL in the form `/live/<runId>`.
 
-### Step 3 — Live Orchestrator Run
+### Step 4 — Live Orchestrator Run
 
 Click the link from Step 2. The live page opens immediately and starts updating as the orchestrator advances.
 
@@ -168,6 +185,10 @@ curl -s -X POST http://localhost:3001/api/replayx/runs \
 ```
 
 Then open the returned `livePath`. This demonstrates the same product value: live orchestration, live dashboard updates, and final incident memory.
+
+If operator access or run links behave unexpectedly during local setup, open:
+
+- `http://localhost:3001/help/troubleshooting`
 
 ---
 

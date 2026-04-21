@@ -1,8 +1,4 @@
-import {
-  approveReplayXRunAction,
-  startReplayXLivePipeline,
-  startReplayXLivePipelineDetached
-} from "../../../../../../lib/live-runs";
+import { archiveReplayXRun } from "../../../../../../lib/live-runs";
 import {
   buildAuthorizedPath,
   buildControlPlaneAccessToken,
@@ -25,22 +21,13 @@ export async function POST(
 
   if (!isAuthorizedRequest(_request, { scope: "run", runId })) {
     return buildControlPlaneErrorResponse(
-      unauthorizedControlPlaneError("ReplayX approval actions"),
+      unauthorizedControlPlaneError("ReplayX archive actions"),
       401
     );
   }
 
   try {
-    const run = await approveReplayXRunAction(runId);
-
-    if (!run.approvals.some((approval) => approval.status === "pending") && !run.currentPhaseId) {
-      try {
-        startReplayXLivePipelineDetached(run.runId);
-      } catch {
-        startReplayXLivePipeline(run.runId);
-      }
-    }
-
+    const run = await archiveReplayXRun(runId);
     const accessToken = buildControlPlaneAccessToken({
       scope: "run",
       runId: run.runId,
@@ -62,9 +49,9 @@ export async function POST(
 
     return buildControlPlaneErrorResponse(
       {
-        error: error instanceof Error ? error.message : "Unable to approve run.",
-        cause: "The run is already resolved, archived, or no longer has a pending approval.",
-        fix: "Open the incident workspace to inspect the current state, then retry only if the action is still available.",
+        error: error instanceof Error ? error.message : "Unable to archive run.",
+        cause: "ReplayX archives only terminal runs, and archive is a lifecycle state rather than a cosmetic filter.",
+        fix: "Wait for the run to finish, then archive it from Ops or the incident workspace.",
         docsPath: "/help/troubleshooting#archived-runs"
       },
       409

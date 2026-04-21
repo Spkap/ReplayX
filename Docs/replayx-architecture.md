@@ -167,6 +167,14 @@ The dashboard connects to the orchestrator over WebSockets for live runs. The co
 
 For the replay path, the dashboard reads `artifacts/<incidentId>/dashboard-replay.json` directly — no live connection required.
 
+### Control-plane semantics
+
+- `/` is the public, proof-first entrance.
+- `/ops`, `/analytics`, live incident workspaces, and action pages are operator surfaces when `REPLAYX_INTERNAL_API_TOKEN` is enabled.
+- Run-scoped and workspace-scoped signed links do not silently escalate into root operator scope.
+- Archive is a read-only lifecycle state: archived runs leave the live fleet, remain readable, and still count in historical analytics.
+- Local troubleshooting guidance lives at `/help/troubleshooting`.
+
 ---
 
 ## Environment Variables
@@ -178,6 +186,7 @@ For the replay path, the dashboard reads `artifacts/<incidentId>/dashboard-repla
 | `REPLAYX_USE_CODEX_DIAGNOSIS_WORKERS` | `1` | Set to `0` to use deterministic fallbacks for all diagnosis workers |
 | `REPLAYX_MAX_PARALLEL_WORKERS` | `4` | Concurrency cap for diagnosis arena |
 | `REPLAYX_INTERNAL_API_TOKEN` | — | Shared secret for dashboard run creation API |
+| `REPLAYX_GITHUB_PR_MODE` | `preview` | Set to `live` to allow ReplayX to push a branch and open a GitHub PR after validation |
 
 ---
 

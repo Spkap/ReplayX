@@ -122,3 +122,25 @@ A task is complete only when:
 - Phase model: [`PIPELINE.md`](PIPELINE.md)
 - Adding incident classes: [`Docs/replayx-incident-authoring-guide.md`](Docs/replayx-incident-authoring-guide.md)
 - Demo operations: [`Docs/replayx-demo-runbook.md`](Docs/replayx-demo-runbook.md)
+
+
+<claude-mem-context>
+# Memory Context
+
+# [ReplayX] recent context, 2026-04-21 11:26pm GMT+5:30
+
+Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision
+Format: ID TIME TYPE TITLE
+Fetch details: get_observations([IDs]) | Search: mem-search skill
+
+Stats: 5 obs (2,471t read) | 199,478t work | 99% savings
+
+### Apr 21, 2026
+56 10:48p 🔵 ReplayX Project Structure — Directory Layout Confirmed
+57 " 🔵 ReplayX Full Architecture — 8-Phase Codex-First Incident Response System
+60 10:49p 🔵 ReplayX Dashboard — Full Page Structure Confirmed
+61 " 🔵 ReplayX Test Results — 2 Failing Tests in live-runs, Dashboard Build Clean, Slack 11/11 Pass
+62 10:51p 🔴 Live Run Pipeline Fixed — Node.js Test Runner Detection Bug in shouldCreateLivePullRequest()
+
+Access 199k tokens of past work via get_observations([IDs]) or mem-search skill.
+</claude-mem-context>

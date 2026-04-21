@@ -1,5 +1,10 @@
 import { getReplayXRun } from "../../../../lib/live-runs";
 import { isAuthorizedRequest } from "../../../../lib/control-plane-auth";
+import {
+  buildControlPlaneErrorResponse,
+  runNotFoundControlPlaneError,
+  unauthorizedControlPlaneError
+} from "../../../../lib/control-plane-errors";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +15,10 @@ export async function GET(
   const { runId } = await params;
 
   if (!isAuthorizedRequest(_request, { scope: "run", runId })) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return buildControlPlaneErrorResponse(
+      unauthorizedControlPlaneError("ReplayX run access"),
+      401
+    );
   }
 
   try {
@@ -20,7 +28,7 @@ export async function GET(
     const nodeError = error as NodeJS.ErrnoException;
 
     if (nodeError.code === "ENOENT") {
-      return Response.json({ error: "Run not found" }, { status: 404 });
+      return buildControlPlaneErrorResponse(runNotFoundControlPlaneError(runId), 404);
     }
 
     throw error;

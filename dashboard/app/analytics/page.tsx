@@ -1,5 +1,13 @@
 import Link from "next/link";
 
+import {
+  buildAuthorizedPath,
+  buildControlPlaneAccessToken,
+  controlPlaneAuthRequired,
+  isControlPlaneAccessTokenValid
+} from "../../lib/control-plane-auth";
+import { unauthorizedControlPlaneError } from "../../lib/control-plane-errors";
+import { ControlPlaneErrorPanel } from "../../components/control-plane-error-panel";
 import { getReplayXAnalytics } from "../../lib/live-runs";
 
 const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
@@ -7,20 +15,47 @@ const formatPercent = (value: number) => `${Math.round(value * 100)}%`;
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export default async function AnalyticsPage() {
+export default async function AnalyticsPage({
+  searchParams
+}: {
+  searchParams?: Promise<{ access?: string }>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const accessToken = resolvedSearchParams.access ?? null;
+
+  if (
+    controlPlaneAuthRequired() &&
+    !isControlPlaneAccessTokenValid(accessToken, { scope: "control-plane" })
+  ) {
+    return (
+      <main className="shell replay-shell">
+        <ControlPlaneErrorPanel
+          kicker="Unauthorized"
+          title="This ReplayX analytics page requires a signed operator link"
+          problem={unauthorizedControlPlaneError("This ReplayX analytics page")}
+        />
+      </main>
+    );
+  }
+
+  const controlPlaneAccessToken = accessToken ?? buildControlPlaneAccessToken({ scope: "control-plane" });
+  const homePath = buildAuthorizedPath("/", controlPlaneAccessToken);
   const analytics = await getReplayXAnalytics();
 
   return (
     <main className="shell replay-shell">
       <header className="replay-header">
         <div>
-          <Link className="ghost-link" href="/">
+          <Link className="ghost-link" href={homePath}>
             ← Back to home
           </Link>
           <span className="eyebrow">Reliability + Learning Analytics</span>
           <h1>Measure whether the product is earning trust</h1>
           <p className="lead">
             Analytics should explain how fast ReplayX works, how often it gets to a validated outcome, and where operator effort still leaks into the system.
+          </p>
+          <p className="ghost-text">
+            Historical metrics include archived runs. Current live board: {analytics.visibleRuns}. Archived records preserved: {analytics.archivedRuns}.
           </p>
         </div>
       </header>

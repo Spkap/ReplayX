@@ -1,5 +1,9 @@
 import { getReplayXRun } from "../../../../../../lib/live-runs";
 import { isAuthorizedRequest } from "../../../../../../lib/control-plane-auth";
+import {
+  runNotFoundControlPlaneError,
+  unauthorizedControlPlaneError
+} from "../../../../../../lib/control-plane-errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -17,7 +21,7 @@ export async function GET(
   const { runId } = await params;
 
   if (!isAuthorizedRequest(request, { scope: "run", runId })) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return Response.json(unauthorizedControlPlaneError("ReplayX live run stream"), { status: 401 });
   }
 
   const encoder = new TextEncoder();
@@ -49,7 +53,9 @@ export async function GET(
             const nodeError = error as NodeJS.ErrnoException;
             if (nodeError.code === "ENOENT") {
               controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ ok: false, error: "Run not found" })}\n\n`)
+                encoder.encode(
+                  `data: ${JSON.stringify({ ok: false, ...runNotFoundControlPlaneError(runId) })}\n\n`
+                )
               );
             } else {
               controller.enqueue(

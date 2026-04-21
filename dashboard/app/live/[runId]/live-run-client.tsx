@@ -4,10 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import type { ReplayXLiveRun } from "../../../lib/live-runs";
+import type { ControlPlaneErrorPayload } from "../../../lib/control-plane-errors";
 
 type LiveRunResponse = {
   ok: boolean;
   run: ReplayXLiveRun;
+};
+
+type ClientErrorState = ControlPlaneErrorPayload & {
+  technicalDetail?: string | null;
 };
 
 type LiveRunStreamResponse =
@@ -18,8 +23,12 @@ type LiveRunStreamResponse =
   | {
       ok: false;
       error: string;
+      cause?: string;
+      fix?: string;
+      docsPath?: string;
     };
 
+type ActionId = "approve" | "retry" | "cancel" | "archive";
 type TabId = "overview" | "timeline" | "evidence" | "diagnosis" | "patch" | "validation" | "resolution" | "memory";
 
 const tabs: Array<{ id: TabId; label: string }> = [
@@ -38,6 +47,11 @@ const formatPercent = (value: number): string => `${Math.round(value * 100)}%`;
 const isTerminalStatus = (status: string): boolean =>
   status === "resolved_to_pr" || status === "blocked" || status === "failed" || status === "cancelled";
 
+const buildAccessPath = (pathname: string, accessToken: string | null | undefined): string =>
+  accessToken
+    ? `${pathname}${pathname.includes("?") ? "&" : "?"}access=${encodeURIComponent(accessToken)}`
+    : pathname;
+
 const statusTone = (status: string): "danger" | "neutral" | "success" | "warning" => {
   if (status === "resolved_to_pr") {
     return "success";
@@ -51,22 +65,90 @@ const statusTone = (status: string): "danger" | "neutral" | "success" | "warning
   return "warning";
 };
 
+const nextActionSummary = (run: ReplayXLiveRun): string => {
+  if (run.archivedAt) {
+    return "This run is archived. ReplayX removed it from the active fleet while preserving the full incident record and historical analytics.";
+  }
+
+  if (run.currentBlocker) {
+    return run.currentBlocker;
+  }
+
+  if (run.approvals.some((approval) => approval.status === "pending")) {
+    return "An operator must approve the next action before ReplayX can continue.";
+  }
+
+  if (run.status === "resolved_to_pr") {
+    return run.pullRequest.url
+      ? "ReplayX validated the patch, opened the pull request, and promoted the incident memory."
+      : "ReplayX validated the patch, prepared a PR-ready bundle, and promoted the incident memory.";
+  }
+
+  if (run.status === "cancelled") {
+    return "The run was cancelled before ReplayX could finish the resolution workflow.";
+  }
+
+  if (run.status === "failed") {
+    return "ReplayX hit an execution failure before it could finish the resolution workflow.";
+  }
+
+  if (run.status === "blocked") {
+    return "ReplayX needs operator help to unblock the next step in the resolution workflow.";
+  }
+
+  return "ReplayX is progressing through the bounded execution loop.";
+};
+
+const normalizeClientError = (
+  error: unknown,
+  fallback: string
+): ClientErrorState => {
+  if (typeof error === "object" && error !== null && "error" in error) {
+    const payload = error as Partial<ControlPlaneErrorPayload> & { technicalDetail?: string | null };
+    return {
+      error: payload.error ?? fallback,
+      cause: payload.cause ?? "ReplayX returned an incomplete error payload.",
+      fix: payload.fix ?? "Retry the action. If it repeats, open the troubleshooting guide.",
+      docsPath: payload.docsPath ?? "/help/troubleshooting",
+      technicalDetail: payload.technicalDetail ?? null
+    };
+  }
+
+  if (error instanceof Error) {
+    return {
+      error: fallback,
+      cause: "The request failed before ReplayX returned structured details.",
+      fix: "Retry the action. If it repeats, open the troubleshooting guide.",
+      docsPath: "/help/troubleshooting",
+      technicalDetail: error.message
+    };
+  }
+
+  return {
+    error: fallback,
+    cause: "ReplayX returned an unknown client-side failure.",
+    fix: "Retry the action. If it repeats, open the troubleshooting guide.",
+    docsPath: "/help/troubleshooting",
+    technicalDetail: null
+  };
+};
+
 function StatusBadge({ status }: { status: string }) {
   return <span className={`pill pill-${statusTone(status)}`}>{status.replaceAll("_", " ")}</span>;
 }
 
 async function postAction(
   runId: string,
-  action: "approve" | "retry" | "cancel",
+  action: ActionId,
   accessToken?: string | null
 ): Promise<{ run: ReplayXLiveRun; accessToken: string | null; workspacePath: string | null }> {
-  const search = accessToken ? `?access=${encodeURIComponent(accessToken)}` : "";
-  const response = await fetch(`/api/runs/${encodeURIComponent(runId)}/actions/${action}${search}`, {
+  const response = await fetch(buildAccessPath(`/api/runs/${encodeURIComponent(runId)}/actions/${action}`, accessToken), {
     method: "POST"
   });
 
   if (!response.ok) {
-    throw new Error(`Action ${action} failed with status ${response.status}`);
+    const payload = (await response.json().catch(() => null)) as ControlPlaneErrorPayload | null;
+    throw payload ?? { error: `Action ${action} failed with status ${response.status}` };
   }
 
   const payload = (await response.json()) as {
@@ -111,19 +193,21 @@ export function LiveRunClient({
   runId,
   workspaceId,
   initialRun,
-  accessToken
+  accessToken,
+  controlPlaneAccessToken
 }: {
   runId: string;
   workspaceId?: string;
   initialRun?: ReplayXLiveRun | null;
   accessToken?: string | null;
+  controlPlaneAccessToken?: string | null;
 }) {
   const [run, setRun] = useState<ReplayXLiveRun | null>(initialRun ?? null);
   const [activeRunId, setActiveRunId] = useState(runId);
   const [activeAccessToken, setActiveAccessToken] = useState<string | null>(accessToken ?? null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ClientErrorState | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("overview");
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<ClientErrorState | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,7 +240,7 @@ export function LiveRunClient({
         }
       } catch (loadError) {
         if (!cancelled) {
-          setError(loadError instanceof Error ? loadError.message : "Unable to load run");
+          setError(normalizeClientError(loadError, "Unable to load the ReplayX run."));
           timer = setTimeout(load, 3000);
         }
       }
@@ -181,7 +265,7 @@ export function LiveRunClient({
           const payload = JSON.parse(event.data) as LiveRunStreamResponse;
 
           if (!payload.ok) {
-            setError(payload.error);
+            setError(normalizeClientError(payload, "ReplayX could not stream the live run."));
             return;
           }
 
@@ -192,7 +276,12 @@ export function LiveRunClient({
             eventSource?.close();
           }
         } catch {
-          setError("Received invalid run stream payload");
+          setError(
+            normalizeClientError(
+              { error: "Received invalid run stream payload." },
+              "ReplayX returned an unreadable live update."
+            )
+          );
         }
       };
 
@@ -219,7 +308,7 @@ export function LiveRunClient({
           const payload = JSON.parse(String(event.data)) as LiveRunStreamResponse;
 
           if (!payload.ok) {
-            setError(payload.error);
+            setError(normalizeClientError(payload, "ReplayX could not stream the live run."));
             return;
           }
 
@@ -230,7 +319,12 @@ export function LiveRunClient({
             webSocket?.close();
           }
         } catch {
-          setError("Received invalid websocket payload");
+          setError(
+            normalizeClientError(
+              { error: "Received invalid websocket payload." },
+              "ReplayX returned an unreadable live update."
+            )
+          );
         }
       };
 
@@ -260,7 +354,7 @@ export function LiveRunClient({
     };
   }, [activeAccessToken, activeRunId, run?.status]);
 
-  const handleAction = async (action: "approve" | "retry" | "cancel") => {
+  const handleAction = async (action: ActionId) => {
     try {
       const result = await postAction(activeRunId, action, activeAccessToken);
       setRun(result.run);
@@ -268,7 +362,7 @@ export function LiveRunClient({
       setActiveAccessToken(result.accessToken);
       setActionError(null);
     } catch (nextError) {
-      setActionError(nextError instanceof Error ? nextError.message : "Unable to complete the action");
+      setActionError(normalizeClientError(nextError, "Unable to complete the action."));
     }
   };
 
@@ -278,7 +372,13 @@ export function LiveRunClient({
         <article className="workspace-panel">
           <span className="section-kicker">Waiting for run</span>
           <h2>Run status is not available yet</h2>
-          <p className="ghost-text">{error}</p>
+          <p>{error.error}</p>
+          <p className="ghost-text">{error.cause}</p>
+          <div className="rail-actions" style={{ marginTop: "1rem" }}>
+            <Link className="ghost-link" href={error.docsPath}>
+              Open troubleshooting guide
+            </Link>
+          </div>
         </article>
       </main>
     );
@@ -297,12 +397,17 @@ export function LiveRunClient({
   }
 
   const activeWorkspaceId = workspaceId ?? run.workspaceId;
+  const homePath = buildAccessPath("/", controlPlaneAccessToken);
+  const opsPath = controlPlaneAccessToken ? buildAccessPath("/ops", controlPlaneAccessToken) : null;
+  const analyticsPath = controlPlaneAccessToken
+    ? buildAccessPath("/analytics", controlPlaneAccessToken)
+    : null;
 
   return (
     <main className="shell replay-shell">
       <header className="replay-header">
         <div>
-          <Link className="ghost-link" href="/">
+          <Link className="ghost-link" href={homePath}>
             ← Back to home
           </Link>
           <span className="eyebrow">Incident Workspace</span>
@@ -311,14 +416,16 @@ export function LiveRunClient({
             A live run with the current state, the active blocker, the validation story, and the exact route to resolution.
           </p>
         </div>
-        <div className="header-actions">
-          <Link className="button button-secondary" href="/ops">
-            Ops
-          </Link>
-          <Link className="button button-secondary" href="/analytics">
-            Analytics
-          </Link>
-        </div>
+        {opsPath && analyticsPath ? (
+          <div className="header-actions">
+            <Link className="button button-secondary" href={opsPath}>
+              Ops
+            </Link>
+            <Link className="button button-secondary" href={analyticsPath}>
+              Analytics
+            </Link>
+          </div>
+        ) : null}
       </header>
 
       <section className="workspace-shell fade-in">
@@ -357,7 +464,15 @@ export function LiveRunClient({
                 <strong>{run.currentBlocker ?? "None"}</strong>
               </div>
             </div>
-            {actionError ? <p style={{ color: "#ffd9cf", marginTop: "1rem" }}>{actionError}</p> : null}
+            {actionError ? (
+              <div style={{ color: "#ffd9cf", marginTop: "1rem" }}>
+                <p>{actionError.error}</p>
+                <p>{actionError.fix}</p>
+                <Link className="ghost-link" href={actionError.docsPath}>
+                  Open troubleshooting guide
+                </Link>
+              </div>
+            ) : null}
           </article>
 
           <div className="tab-strip">
@@ -523,7 +638,9 @@ export function LiveRunClient({
             <div>
               <span className="section-kicker">Next action</span>
               <h3 style={{ marginTop: "0.9rem" }}>
-                {run.approvals.some((approval) => approval.status === "pending")
+                {run.archivedAt
+                  ? "Run archived"
+                  : run.approvals.some((approval) => approval.status === "pending")
                   ? "Approval needed"
                   : isTerminalStatus(run.status)
                     ? "Run complete"
@@ -531,7 +648,7 @@ export function LiveRunClient({
               </h3>
             </div>
             <div className="workspace-callout">
-              <p>{run.currentBlocker ?? "ReplayX is progressing through the bounded execution loop."}</p>
+              <p>{nextActionSummary(run)}</p>
             </div>
             <div className="rail-actions">
               {run.approvals.some((approval) => approval.status === "pending") ? (
@@ -544,7 +661,12 @@ export function LiveRunClient({
                   Cancel run
                 </button>
               ) : null}
-              {isTerminalStatus(run.status) ? (
+              {isTerminalStatus(run.status) && !run.archivedAt ? (
+                <button className="button button-secondary" onClick={() => void handleAction("archive")} type="button">
+                  Archive run
+                </button>
+              ) : null}
+              {isTerminalStatus(run.status) && !run.archivedAt ? (
                 <button className="button button-secondary" onClick={() => void handleAction("retry")} type="button">
                   Retry run
                 </button>
@@ -563,6 +685,11 @@ export function LiveRunClient({
             <div className="rail-note">
               PR · {run.pullRequest.url ?? run.pullRequest.previewPath ?? "pending"}
             </div>
+            {run.archivedAt ? (
+              <div className="rail-note">
+                Archived · {new Date(run.archivedAt).toLocaleString()}
+              </div>
+            ) : null}
           </article>
         </aside>
       </section>

@@ -138,6 +138,8 @@ export type ReplayXLiveRun = {
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
+  archivedAt: string | null;
+  archivedBy: "operator" | "system" | null;
   error: string | null;
   policy: WorkspacePolicy;
   phases: LiveRunPhase[];
@@ -154,6 +156,7 @@ export type LiveRunOptions = {
   legacyRunStoreRoot?: string;
   artifactsRoot?: string;
   phaseDelayMs?: number;
+  includeArchived?: boolean;
 };
 
 type ResolvedLiveRunOptions = {
@@ -162,10 +165,13 @@ type ResolvedLiveRunOptions = {
   legacyRunStoreRoot: string | null;
   artifactsRoot: string;
   phaseDelayMs: number;
+  includeArchived: boolean;
 };
 
 export type ReplayXAnalyticsSnapshot = {
   totalRuns: number;
+  visibleRuns: number;
+  archivedRuns: number;
   activeRuns: number;
   blockedRuns: number;
   approvalQueue: number;
@@ -244,6 +250,8 @@ const normalizeLegacyRun = (rawRun: ReplayXLiveRun | (Record<string, unknown> & 
     createdAt: typeof run.createdAt === "string" ? run.createdAt : nowIso(),
     updatedAt: typeof run.updatedAt === "string" ? run.updatedAt : nowIso(),
     completedAt: typeof run.completedAt === "string" ? run.completedAt : null,
+    archivedAt: typeof run.archivedAt === "string" ? run.archivedAt : null,
+    archivedBy: run.archivedBy === "operator" || run.archivedBy === "system" ? run.archivedBy : null,
     error: typeof run.error === "string" ? run.error : null,
     policy: (run.policy as WorkspacePolicy | undefined) ?? createDefaultPolicy(),
     phases:
@@ -349,7 +357,8 @@ const resolveOptions = (options: LiveRunOptions = {}) => {
           ? null
           : path.join(repoRoot, ".replayx-runs"),
     artifactsRoot: options.artifactsRoot ?? path.join(repoRoot, "artifacts"),
-    phaseDelayMs: options.phaseDelayMs ?? Number(process.env.REPLAYX_LIVE_PHASE_DELAY_MS ?? "800")
+    phaseDelayMs: options.phaseDelayMs ?? Number(process.env.REPLAYX_LIVE_PHASE_DELAY_MS ?? "800"),
+    includeArchived: options.includeArchived ?? false
   };
 };
 
@@ -361,6 +370,25 @@ const createRunId = (): string =>
 
 const isTerminalStatus = (status: LiveRunStatus): boolean =>
   status === "resolved_to_pr" || status === "blocked" || status === "failed" || status === "cancelled";
+
+const isArchivedRun = (run: ReplayXLiveRun): boolean => run.archivedAt !== null;
+
+const assertRunMutable = (
+  run: ReplayXLiveRun,
+  action: "approve" | "cancel" | "retry"
+): void => {
+  if (isArchivedRun(run)) {
+    throw new Error(
+      `ReplayX cannot ${action} an archived run. Archived runs are read-only incident records.`
+    );
+  }
+};
+
+const compareRunsByRecency = (left: ReplayXLiveRun, right: ReplayXLiveRun): number => {
+  const leftKey = left.completedAt ?? left.updatedAt ?? left.createdAt;
+  const rightKey = right.completedAt ?? right.updatedAt ?? right.createdAt;
+  return rightKey.localeCompare(leftKey);
+};
 
 const phaseStatusToRunStatus = (phaseId: ReplayXPhaseId, phaseStatus: LivePhaseStatus): LiveRunStatus => {
   if (phaseStatus === "failed") {
@@ -632,7 +660,10 @@ const buildWorkspaceUrl = (run: ReplayXLiveRun): string | null => {
   )}`;
 };
 
-const buildControlPlaneActionUrl = (run: ReplayXLiveRun, action: "approve" | "retry" | "cancel"): string | null => {
+const buildControlPlaneActionUrl = (
+  run: ReplayXLiveRun,
+  action: "approve" | "retry" | "cancel" | "archive"
+): string | null => {
   const dashboardBaseUrl = normalizeBaseUrl(process.env.REPLAYX_DASHBOARD_URL);
 
   if (!dashboardBaseUrl) {
@@ -686,13 +717,22 @@ const buildSlackBlocks = (run: ReplayXLiveRun) => {
       });
     }
   } else if (isTerminalStatus(run.status)) {
-    const retryUrl = buildControlPlaneActionUrl(run, "retry");
+    const retryUrl = !isArchivedRun(run) ? buildControlPlaneActionUrl(run, "retry") : null;
+    const archiveUrl = !isArchivedRun(run) ? buildControlPlaneActionUrl(run, "archive") : null;
 
     if (retryUrl) {
       actionElements.push({
         type: "button",
         text: { type: "plain_text", text: "Retry Run" },
         url: retryUrl
+      });
+    }
+
+    if (archiveUrl) {
+      actionElements.push({
+        type: "button",
+        text: { type: "plain_text", text: "Archive Run" },
+        url: archiveUrl
       });
     }
   }
@@ -910,6 +950,8 @@ export const createReplayXRun = async (
     createdAt: timestamp,
     updatedAt: timestamp,
     completedAt: null,
+    archivedAt: null,
+    archivedBy: null,
     error: null,
     policy,
     phases: livePhaseDefinitions.map((phase) => ({
@@ -980,7 +1022,9 @@ export const listReplayXRuns = async (rawOptions: LiveRunOptions = {}): Promise<
     const db = getRunStore(options.runStoreRoot, options.legacyRunStoreRoot ?? null);
     const runs = listSerializedRuns(db).map((text) => normalizeLegacyRun(JSON.parse(text) as ReplayXLiveRun));
 
-    return runs.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+    return runs
+      .filter((run) => options.includeArchived || !isArchivedRun(run))
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   } catch (error) {
     const nodeError = error as NodeJS.ErrnoException;
     if (nodeError.code === "ENOENT") {
@@ -988,6 +1032,28 @@ export const listReplayXRuns = async (rawOptions: LiveRunOptions = {}): Promise<
     }
     throw error;
   }
+};
+
+export const selectFeaturedProofRun = (
+  runs: ReplayXLiveRun[]
+): ReplayXLiveRun | null => {
+  const visibleLiveRuns = runs.filter((run) => run.origin === "live-run" && !isArchivedRun(run));
+  const validatedRun = visibleLiveRuns
+    .filter((run) => run.pullRequest.status === "ready")
+    .sort(compareRunsByRecency)[0];
+
+  if (validatedRun) {
+    return validatedRun;
+  }
+
+  return visibleLiveRuns.filter((run) => isTerminalStatus(run.status)).sort(compareRunsByRecency)[0] ?? null;
+};
+
+export const getFeaturedProofRun = async (
+  rawOptions: LiveRunOptions = {}
+): Promise<ReplayXLiveRun | null> => {
+  const runs = await listReplayXRuns(rawOptions);
+  return selectFeaturedProofRun(runs);
 };
 
 const average = (values: number[]): number | null => {
@@ -999,7 +1065,10 @@ const average = (values: number[]): number | null => {
 };
 
 export const getReplayXAnalytics = async (rawOptions: LiveRunOptions = {}): Promise<ReplayXAnalyticsSnapshot> => {
-  const runs = (await listReplayXRuns(rawOptions)).filter((run) => run.origin === "live-run");
+  const historicalRuns = (await listReplayXRuns({ ...rawOptions, includeArchived: true })).filter(
+    (run) => run.origin === "live-run"
+  );
+  const visibleRuns = historicalRuns.filter((run) => !isArchivedRun(run));
   const activeStatuses: LiveRunStatus[] = [
     "queued",
     "triaging",
@@ -1011,26 +1080,26 @@ export const getReplayXAnalytics = async (rawOptions: LiveRunOptions = {}): Prom
     "opening_pr"
   ];
 
-  const completedDurations = runs
+  const completedDurations = historicalRuns
     .filter((run) => run.pullRequest.status === "ready" && run.completedAt)
     .map((run) => (Date.parse(run.completedAt as string) - Date.parse(run.createdAt)) / 60_000);
-  const reproSuccesses = runs.filter((run) =>
+  const reproSuccesses = historicalRuns.filter((run) =>
     run.phases.find((phase) => phase.id === "repro" && phase.status === "completed")
   ).length;
-  const validationSuccesses = runs.filter((run) => run.pullRequest.status === "ready").length;
-  const operatorInterventions = runs.filter(
+  const validationSuccesses = historicalRuns.filter((run) => run.pullRequest.status === "ready").length;
+  const operatorInterventions = historicalRuns.filter(
     (run) =>
       run.approvals.length > 0 ||
       run.events.some((event) => event.actor === "operator" && event.kind !== "run.created")
   ).length;
-  const skillPromotions = runs.filter(
+  const skillPromotions = historicalRuns.filter(
     (run) => run.pullRequest.status === "ready" && run.cards.skill.path && run.cards.skill.path !== "pending"
   ).length;
   const incidentCounts = new Map<string, number>();
   const integrationFailureCounts = new Map<string, number>();
   const phaseTimings = new Map<string, number[]>();
 
-  for (const run of runs) {
+  for (const run of historicalRuns) {
     incidentCounts.set(run.incidentId, (incidentCounts.get(run.incidentId) ?? 0) + 1);
 
     for (const integration of run.integrations) {
@@ -1055,19 +1124,24 @@ export const getReplayXAnalytics = async (rawOptions: LiveRunOptions = {}): Prom
   }
 
   return {
-    totalRuns: runs.length,
-    activeRuns: runs.filter((run) => activeStatuses.includes(run.status)).length,
-    blockedRuns: runs.filter((run) => run.status === "blocked" || run.status === "failed").length,
-    approvalQueue: runs.flatMap((run) => run.approvals).filter((approval) => approval.status === "pending").length,
+    totalRuns: historicalRuns.length,
+    visibleRuns: visibleRuns.length,
+    archivedRuns: historicalRuns.length - visibleRuns.length,
+    activeRuns: visibleRuns.filter((run) => activeStatuses.includes(run.status)).length,
+    blockedRuns: visibleRuns.filter((run) => run.status === "blocked" || run.status === "failed").length,
+    approvalQueue: visibleRuns
+      .flatMap((run) => run.approvals)
+      .filter((approval) => approval.status === "pending").length,
     mttrMinutes: average(completedDurations),
     phaseTimingMinutes: Object.fromEntries(
       [...phaseTimings.entries()].map(([phaseId, durations]) => [phaseId, Number((average(durations) ?? 0).toFixed(2))])
     ),
-    reproSuccessRate: runs.length === 0 ? 0 : reproSuccesses / runs.length,
-    validationSuccessRate: runs.length === 0 ? 0 : validationSuccesses / runs.length,
-    prAcceptanceRate: runs.length === 0 ? 0 : validationSuccesses / runs.length,
-    operatorInterventionRate: runs.length === 0 ? 0 : operatorInterventions / runs.length,
-    skillReuseRate: runs.length === 0 ? 0 : skillPromotions / runs.length,
+    reproSuccessRate: historicalRuns.length === 0 ? 0 : reproSuccesses / historicalRuns.length,
+    validationSuccessRate: historicalRuns.length === 0 ? 0 : validationSuccesses / historicalRuns.length,
+    prAcceptanceRate: historicalRuns.length === 0 ? 0 : validationSuccesses / historicalRuns.length,
+    operatorInterventionRate:
+      historicalRuns.length === 0 ? 0 : operatorInterventions / historicalRuns.length,
+    skillReuseRate: historicalRuns.length === 0 ? 0 : skillPromotions / historicalRuns.length,
     topRecurringIncidentFingerprints: [...incidentCounts.entries()]
       .sort((left, right) => right[1] - left[1])
       .slice(0, 5)
@@ -1086,6 +1160,12 @@ export const approveReplayXRunAction = async (
   const options = resolveOptions(rawOptions);
   let run = await readRun(runId, options);
   const timestamp = nowIso();
+
+  assertRunMutable(run, "approve");
+
+  if (!run.approvals.some((approval) => approval.status === "pending")) {
+    throw new Error("ReplayX has no pending approval for this run.");
+  }
 
   run = {
     ...run,
@@ -1122,6 +1202,12 @@ export const cancelReplayXRun = async (
   const options = resolveOptions(rawOptions);
   let run = await readRun(runId, options);
 
+  assertRunMutable(run, "cancel");
+
+  if (isTerminalStatus(run.status)) {
+    throw new Error("ReplayX can cancel only active runs.");
+  }
+
   run = {
     ...run,
     status: "cancelled",
@@ -1143,12 +1229,51 @@ export const cancelReplayXRun = async (
   return run;
 };
 
+export const archiveReplayXRun = async (
+  runId: string,
+  rawOptions: LiveRunOptions = {}
+): Promise<ReplayXLiveRun> => {
+  const options = resolveOptions(rawOptions);
+  let run = await readRun(runId, options);
+
+  if (!isTerminalStatus(run.status)) {
+    throw new Error("ReplayX can archive only terminal runs.");
+  }
+
+  if (isArchivedRun(run)) {
+    return run;
+  }
+
+  run = {
+    ...run,
+    archivedAt: nowIso(),
+    archivedBy: "operator",
+    updatedAt: nowIso()
+  };
+  run = appendEvent(run, {
+    actor: "operator",
+    kind: "run.archived",
+    title: "Run archived",
+    summary: "ReplayX archived this incident from live fleet and analytics views while preserving the audit trail.",
+    phaseId: run.currentPhaseId,
+    evidenceRefs: []
+  });
+
+  return writeRun(run, options);
+};
+
 export const retryReplayXRun = async (
   runId: string,
   rawOptions: LiveRunOptions = {}
 ): Promise<ReplayXLiveRun> => {
   const options = resolveOptions(rawOptions);
   const previousRun = await readRun(runId, options);
+
+  assertRunMutable(previousRun, "retry");
+
+  if (!isTerminalStatus(previousRun.status)) {
+    throw new Error("ReplayX can retry only terminal runs.");
+  }
 
   const nextRun = await createReplayXRun(
     {

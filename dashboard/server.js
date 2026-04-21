@@ -95,7 +95,15 @@ function readRunPayload(runId) {
     db.close();
 
     if (!row || !row.payload) {
-      return JSON.stringify({ ok: false, error: "Run not found" });
+      return JSON.stringify({
+        ok: false,
+        error: `ReplayX could not find run ${runId}.`,
+        cause:
+          "The run id is stale, the control-plane store was reset, or this dashboard is pointing at a different .replayx-control-plane database than the link expects.",
+        fix:
+          "Open the Featured Proof or create a fresh run. In local dev, verify that you are still in the same repo and using the expected control-plane store.",
+        docsPath: "/help/troubleshooting#run-not-found"
+      });
     }
 
     return JSON.stringify({ ok: true, run: JSON.parse(row.payload) });
