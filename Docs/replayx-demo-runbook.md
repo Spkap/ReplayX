@@ -1,41 +1,44 @@
 # ReplayX Demo Runbook
 
-Follow this runbook to show the strongest live ReplayX demo flow:
+Operational guide for running a live ReplayX demo — from cold start to a complete 8-phase incident run on screen.
 
-1. User reports a bug in Slack
-2. Slack starts a live ReplayX run
-3. The dashboard updates live as the orchestrator advances through all phases
-4. The run ends with a postmortem and a reusable incident skill
+The strongest demo flow:
 
-The best incident for this flow is the checkout race condition — it is concrete, high-signal, and easy to narrate in under two minutes.
+1. Show the bug in the demo app
+2. Mention ReplayX in Slack
+3. Watch the dashboard capture validation, repo search, and recent-change evidence
+4. Show the proof gate: ReplayX stops before claiming a fix without validated code changes
+
+Best incident for this flow: **checkout race condition** — concrete, high-signal, and narrates cleanly in under two minutes.
 
 ---
 
 ## Demo Modes
 
-| Mode | Description | When to use |
+| Mode | Path | When to use |
 |---|---|---|
-| **Featured proof** | Public homepage → validated replay or latest validated run | Start here. It explains the product in under 60 seconds without requiring operator access. |
-| **Live run** | Slack trigger or manual API trigger → live orchestration → dashboard updates in real time | Primary operator demo after the proof entrance. |
-| **Replay** | Precomputed artifacts at `/replay/incident-checkout-race-001` | Fallback only. Use if live orchestration is unavailable. |
+| **Live run** | Slack trigger or `POST /api/replayx/runs` → `/workspaces/:workspaceId/incidents/:runId` or `/live/:runId` | Primary demo — shows real orchestration, real phase updates |
+| **Manual live run** | `/new` | Primary no-Slack path — creates a realtime incident from fresh text |
+| **Featured run** | `/` → latest live run or new run form | Product entrance — starts or resumes real work |
+| **Fixture replay** | `/replay/incident-checkout-race-001` | Explicit eval fallback — use only when demonstrating fixture coverage |
+
+Always make the mode explicit. Fresh incident text is realtime. Seeded fixtures are evals, not the default product path.
 
 ---
 
 ## Prerequisites
 
-### 1. Environment configuration
-
-Copy environment files and fill in credentials:
+### 1. Environment setup
 
 ```bash
-# Orchestrator (optional — defaults apply)
+# Orchestrator (optional — all defaults apply when unset)
 cp .env.example .env
 
-# Slack service (required for live trigger)
+# Slack service (required for the live trigger flow)
 cp slack/.env.example slack/.env
 ```
 
-Required in `slack/.env`:
+**Required in `slack/.env`:**
 
 ```
 SLACK_SIGNING_SECRET=<your value>
@@ -43,28 +46,26 @@ SLACK_BOT_TOKEN=<your value>
 SLACK_BUGS_CHANNEL_ID=<your value>
 REPLAYX_DASHBOARD_URL=http://localhost:3001
 REPLAYX_ORCHESTRATOR_URL=http://localhost:3001
-REPLAYX_INTERNAL_API_TOKEN=<shared token>
+REPLAYX_INTERNAL_API_TOKEN=<shared secret>
 ```
 
-Optional orchestrator variables (defaults apply if unset):
+**Optional orchestrator variables (all have safe defaults):**
 
 ```
-REPLAYX_CODEX_MODEL=gpt-5-codex           # Model used for Codex workers
-REPLAYX_USE_CODEX_REPRO_WORKER=1          # Set to 0 to skip Codex repro worker
-REPLAYX_USE_CODEX_DIAGNOSIS_WORKERS=1     # Set to 0 to use deterministic heuristics only
-REPLAYX_MAX_PARALLEL_WORKERS=4            # Diagnosis worker concurrency limit
+REPLAYX_CODEX_MODEL=gpt-5-codex
+REPLAYX_USE_CODEX_REPRO_WORKER=1
+REPLAYX_USE_CODEX_DIAGNOSIS_WORKERS=1
+REPLAYX_MAX_PARALLEL_WORKERS=4
 ```
 
-If you want the dashboard API to require auth for run creation, export the same token before launching the dashboard:
+If you want signed operator links, export the same token before launching the dashboard:
 
 ```bash
-export REPLAYX_INTERNAL_API_TOKEN=<same token>
+export REPLAYX_INTERNAL_API_TOKEN=<same shared secret>
+export REPLAYX_SLACK_API_URL=http://localhost:3000
 ```
 
-
 ### 2. Install dependencies
-
-From the repo root:
 
 ```bash
 pnpm install
@@ -74,178 +75,176 @@ npm --prefix slack install
 
 ---
 
-## Live Demo Setup
+## Start the Stack
 
-Fastest path from the repo root:
+**Fastest path — demo app + dashboard, no Slack:**
 
 ```bash
 pnpm dev:all
 ```
 
-That starts the demo app and dashboard without requiring Slack. Add Slack when you need the full intake story:
+**Full live intake flow — demo app + dashboard + Slack:**
 
 ```bash
 pnpm dev:all:slack
 ```
 
-If you want separate terminals, open **three** tabs from the repo root.
-
-### Terminal 1 — Target Demo App
+**Or open three terminals manually:**
 
 ```bash
+# Terminal 1 — demo app
 pnpm demo-app
-```
+# → http://127.0.0.1:4311
 
-Expected: `http://127.0.0.1:4311/`
-
-### Terminal 2 — ReplayX Dashboard
-
-```bash
+# Terminal 2 — dashboard
 pnpm --dir dashboard dev -- --port 3001
-```
+# → http://localhost:3001
 
-Expected: `http://localhost:3001/`
-
-### Terminal 3 — Slack Intake Service
-
-```bash
+# Terminal 3 — Slack service
 npm start --prefix slack
+# → http://localhost:3000
 ```
-
-Expected: `http://localhost:3000/`
 
 ---
 
-## Replay Fallback Setup (Optional)
+## Precompute the Fixture Fallback (Optional)
 
-Only needed if you want the precomputed fallback at `/replay/incident-checkout-race-001`.
+Only needed if you want the `/replay/incident-checkout-race-001` fallback ready before the demo:
 
 ```bash
 pnpm golden-run incidents/checkout-race-condition.json
 ```
 
-Wait for this to complete before relying on the replay route.
+Wait for all 8 phases to complete before relying on the replay route.
 
 ---
 
 ## Live Demo Flow
 
-Use this sequence during the screen share:
+### Step 1 — Show the bug
 
-### Step 1 — Show the Bug
+Open `http://127.0.0.1:4311`. Show the failing state for the checkout race condition — concurrent orders triggering an oversell. Keep this brief. The point is to make the incident feel real, not to explain the broken app.
 
-Open the demo app at `http://127.0.0.1:4311`. Show the failing state for the checkout race condition. Keep this brief — the point is to make the incident feel real, not to stay in the broken app.
+### Step 2 — Open the live run entrance
 
-### Step 2 — Proof Entrance
+Open `http://localhost:3001/new`. Paste the incident text and start a live run. If you start from the homepage, use **Start Live Incident**.
 
-Open `http://localhost:3001/`. Use the featured proof to establish the product story before opening any privileged operator surface.
+### Step 3 — Trigger from Slack
 
-### Step 3 — Slack Handoff (The Trigger)
-
-Go to your Slack workspace's bugs channel. Mention the ReplayX bot with a short bug report:
+In your Slack workspace's bugs channel, mention the bot:
 
 ```
 @ReplayX checkout is overselling stock during concurrent orders
 ```
 
-The bot acknowledges and returns a live dashboard handoff URL in the form `/live/<runId>`.
+The bot acknowledges and returns a live dashboard URL, usually in the form `/workspaces/<workspaceId>/incidents/<runId>`.
 
-### Step 4 — Live Orchestrator Run
+### Step 4 — Watch the live run
 
-Click the link from Step 2. The live page opens immediately and starts updating as the orchestrator advances.
+Click the link. The live page opens immediately and updates as the orchestrator advances through each phase.
 
 Call out as they happen:
 
-- Current phase changing in real time
-- Diagnosis worker fleet appearing during Phase 4
-- Winning diagnosis and selected fix path
-- Verification proof (part of the product, not a manual follow-up)
-- Reusable Skill card appearing at the end of the run
+- **Phase 4:** "Six diagnosis workers fan out in parallel — each owns one failure domain."
+- **Phase 5:** "The challenger phase adversarially rejects any theory that can't hold up."
+- **Phase 6:** "Three fix strategies are generated and ranked. The safe fix wins."
+- **Phase 7:** "The verification plan tells you exactly how to prove the patch works."
+- **Phase 8:** "A reusable skill gets written back to the catalog. The next engineer sees a known pattern, not a blank slate."
 
 ---
 
-## Replay Fallback Flow
+## Manual Trigger (No Slack)
 
-If you need the simpler fallback:
-
-1. Open `http://localhost:3001/replay/incident-checkout-race-001`
-2. Explain that this is the precomputed judge-safe replay path
-3. Walk through diagnosis, fix, proof, postmortem, and skill as a polished artifact story
-
----
-
-## Manual Run Creation (No Slack)
-
-If Slack is unavailable during the demo, start a live run directly:
+If Slack is unavailable, start a live run directly:
 
 ```bash
 curl -s -X POST http://localhost:3001/api/replayx/runs \
+  -H "authorization: Bearer ${REPLAYX_INTERNAL_API_TOKEN}" \
   -H 'content-type: application/json' \
   --data '{"source":"manual","text":"checkout is overselling stock during concurrent orders"}'
 ```
 
-Then open the returned `livePath`. This demonstrates the same product value: live orchestration, live dashboard updates, and final incident memory.
-
-If operator access or run links behave unexpectedly during local setup, open:
-
-- `http://localhost:3001/help/troubleshooting`
+The response includes `livePath` — open that in the browser. The demo value is identical: live orchestration, live dashboard updates, final incident skill.
 
 ---
 
-## What To Say
+## Replay Fallback
 
-Use language like:
+If live orchestration is unavailable:
 
-- "Slack is the intake layer."
-- "ReplayX starts a live incident run immediately."
-- "The dashboard updates live as the orchestrator advances through intake, repro, diagnosis, challenger, fix, review, and postmortem."
-- "At the end of the run, ReplayX emits a reusable incident skill."
+1. Open `http://localhost:3001/replay/incident-checkout-race-001`
+2. Walk through diagnosis, fix, proof plan, postmortem, and skill as a polished artifact story
+3. Emphasize: every artifact is on disk, inspectable, and replayable — nothing is hidden in an agent trace
 
-Avoid:
+---
 
-- "It polls a file."
-- "This is just a replay."
-- "It's basically a chatbot for logs."
+## What to Say
+
+**Use language like:**
+
+- "Slack is the intake layer — one mention starts a full incident run."
+- "The dashboard updates live as the orchestrator advances through all eight phases."
+- "Six diagnosis workers run in parallel, each specializing in a different failure domain."
+- "The challenger phase adversarially rejects weak theories before anything reaches the fix stage."
+- "At the end of the run, ReplayX writes a reusable skill back to its catalog."
+
+**Avoid:**
+
+- "It polls a file." — it streams over WebSockets.
+- "This is just a replay." — replay is the proof surface; live is the product.
+- "It's basically a chatbot for logs." — it reads code, runs commands, and proposes patches.
 
 ---
 
 ## Preflight Checklist
 
-Run this before any recruiter or judge call:
+Run this before any external walkthrough:
 
 **Build verification:**
+
 ```bash
 pnpm --dir dashboard build
 npm test --prefix slack
 ```
 
-**Local stack check:**
+**Stack check:**
+
 ```bash
+# All three services start cleanly
 pnpm demo-app                              # → http://127.0.0.1:4311
 pnpm --dir dashboard dev -- --port 3001   # → http://localhost:3001
 npm start --prefix slack                   # → http://localhost:3000
 ```
 
-**Manual live-run creation check:**
+**Manual live run check:**
+
 ```bash
 curl -s -X POST http://localhost:3001/api/replayx/runs \
+  -H "authorization: Bearer ${REPLAYX_INTERNAL_API_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{"source":"manual","text":"checkout oversell bug from verification"}'
+  -d '{"source":"manual","text":"checkout oversell bug from preflight"}'
 ```
 
-Expected: `ok: true`, `runId` exists, `livePath` exists, run progresses to `completed`, final skill path present after completion.
+Expected response: `ok: true`, `runId` present, `incidentWorkspacePath` present, `livePath` present.
 
-**Behavior checks:**
-- [ ] Demo app starts and seeded bug reproduces
-- [ ] Dashboard starts at `http://localhost:3001`
-- [ ] Slack starts without auth or boot errors
-- [ ] Slack mention creates a run and returns a `/live/<runId>` handoff
+Then verify:
+- Run progresses to `resolved_to_pr`
+- Final skill path present after completion (`skills/incident-checkout-race-001.yaml` or similar)
+
+**Behavior checklist:**
+
+- [ ] Demo app starts and seeded bug reproduces at `http://127.0.0.1:4311`
+- [ ] Dashboard loads at `http://localhost:3001`
+- [ ] Slack service starts without auth or boot errors
+- [ ] Slack mention creates a run and returns an incident workspace handoff URL
 - [ ] Live dashboard page updates through multiple phases without reload
-- [ ] Reusable skill appears only at the end of the run
+- [ ] Reusable skill card appears only at the end of the run (Phase 8)
+- [ ] Replay path loads cleanly at `/replay/incident-checkout-race-001` (if precomputed)
 
-**Optional replay fallback check:**
-```bash
-pnpm golden-run incidents/checkout-race-condition.json
+**Troubleshooting:**
+
+If anything behaves unexpectedly during local setup, open:
+
 ```
-
-Then verify: `http://localhost:3001/replay/incident-checkout-race-001` loads cleanly.
+http://localhost:3001/help/troubleshooting
+```

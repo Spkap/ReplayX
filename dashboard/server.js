@@ -34,6 +34,11 @@ function getSharedSecret() {
   return token || null;
 }
 
+if (process.env.NODE_ENV === "production" && !getSharedSecret()) {
+  console.error("REPLAYX_INTERNAL_API_TOKEN is required when running the dashboard in production.");
+  process.exit(1);
+}
+
 function signValue(value, secret) {
   return crypto.createHmac("sha256", secret).update(value).digest("base64url");
 }

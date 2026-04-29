@@ -6,7 +6,7 @@ This file is read automatically by Claude and Claude Code before any work on thi
 
 ## What This Repo Is
 
-ReplayX is a Codex-first incident response system built for the OpenAI Codex Hackathon.
+ReplayX is a Codex-first incident response system for engineering teams.
 
 It turns a production-style incident bundle into:
 
@@ -54,7 +54,7 @@ ReplayX/
 │   ├── types.ts
 │   ├── phases/             ← One file per phase
 │   └── prompts/            ← Phase prompt templates
-├── dashboard/              ← Next.js judge-facing UI
+├── dashboard/              ← Next.js operator and leadership UI
 ├── demo_app/               ← Intentionally broken target application
 ├── incidents/              ← Seeded incident fixture bundles
 ├── skills/                 ← Reusable skill artifacts
@@ -107,7 +107,7 @@ That means:
 - one end-to-end incident flow that works reliably
 - strong seeded incidents with realistic evidence
 - bounded, explainable diagnosis workers
-- a dashboard judges understand immediately
+- a dashboard operators understand immediately
 - visible artifacts and verification at every step
 
 ---

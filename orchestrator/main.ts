@@ -28,6 +28,8 @@ import {
 import { runSkillMatchPhase, writeSkillMatchArtifacts } from "./phases/skill-match.js";
 import type { ReplayXIncidentPointer, ReplayXRunPlan, ReplayXRuntimeConfig } from "./types.js";
 
+export const DEFAULT_GOLDEN_INCIDENT_PATH = "incidents/checkout-race-condition.json";
+
 const defaultRuntimeConfig = (repoRoot: string): ReplayXRuntimeConfig => ({
   repoRoot,
   artifactsRoot: path.join(repoRoot, "artifacts"),
@@ -112,8 +114,12 @@ const parseCliArguments = (
   return { phase, incidentPath };
 };
 
+export const resolveIncidentPathForPhase = (phase: string | null, incidentPath: string | null): string | null =>
+  phase === "golden-run" ? incidentPath ?? DEFAULT_GOLDEN_INCIDENT_PATH : incidentPath;
+
 export const main = async (): Promise<void> => {
-  const { phase, incidentPath } = parseCliArguments(process.argv.slice(2));
+  const { phase, incidentPath: cliIncidentPath } = parseCliArguments(process.argv.slice(2));
+  const incidentPath = resolveIncidentPathForPhase(phase, cliIncidentPath);
 
   if (phase === "incident-intake") {
     if (!incidentPath) {

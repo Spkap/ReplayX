@@ -1,11 +1,4 @@
-# ReplayX 2-Minute Hackathon Demo Script
-
-This script is optimized for the actual judging constraints:
-
-- max 2-minute video
-- must clearly show what was built during the hackathon
-- must meaningfully leverage Codex
-- should feel ambitious, not incremental
+# ReplayX 2-Minute Demo Script
 
 The winning angle is not "we made a dashboard."
 
@@ -33,7 +26,7 @@ It takes a production-style incident and turns it into:
 - a postmortem
 - a reusable incident skill
 
-That is strong for this hackathon because it is:
+That is strong for the product because it is:
 
 - deeply Codex-native
 - ambitious
@@ -42,7 +35,7 @@ That is strong for this hackathon because it is:
 
 ---
 
-## What Judges Must Understand In 15 Seconds
+## What The Audience Must Understand In 15 Seconds
 
 If they only remember one thing, it should be:
 
@@ -208,7 +201,7 @@ Screen:
 
 Say:
 
-> We built ReplayX during the hackathon as a Codex-first incident-response system: intake, diagnosis arena, challenger, fix strategy, regression proof, and reusable knowledge in one flow.
+> ReplayX is a Codex-first incident-response system: intake, diagnosis arena, challenger, fix strategy, regression proof, and reusable knowledge in one flow.
 
 Then close with:
 
@@ -302,30 +295,11 @@ These are the winning phrases:
 
 ---
 
-## Judge-Friendly One-Liner
+## One-Liner
 
 If someone asks what ReplayX is after the demo, answer with:
 
 > ReplayX is a Codex-native incident-response system that turns a bug report into a defended diagnosis, safe fix plan, proof, and reusable incident knowledge.
-
----
-
-## README / Submission Alignment
-
-Your repo submission should explicitly say:
-
-- what was built during the hackathon
-- that ReplayX is Codex-first
-- that the golden demo flow is:
-  - broken app
-  - Slack intake
-  - diagnosis arena
-  - fix plan
-  - verification proof
-  - postmortem
-  - reusable skill
-
-Your video should match that exact story.
 
 ---
 
@@ -347,6 +321,6 @@ Use this if you want one single read-through:
 >
 > When the incident is over, ReplayX converts the response into durable organizational memory: a postmortem and a reusable incident skill so the next similar failure gets solved faster.
 >
-> We built ReplayX during the hackathon as a Codex-first incident-response system: intake, diagnosis arena, challenger, fix strategy, regression proof, and reusable knowledge in one flow.
+> ReplayX is a Codex-first incident-response system: intake, diagnosis arena, challenger, fix strategy, regression proof, and reusable knowledge in one flow.
 >
 > ReplayX is what incident response looks like when Codex is the debugging team.

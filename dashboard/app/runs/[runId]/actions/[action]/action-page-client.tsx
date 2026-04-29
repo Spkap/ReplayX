@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import type { ReplayXLiveRun } from "../../../../../lib/live-runs";
 import type { ControlPlaneErrorPayload } from "../../../../../lib/control-plane-errors";
+import { AppFrame, MetricCell, PageHeader, StatusPill } from "../../../../../components/replayx-ui";
 
 type ActionId = "approve" | "retry" | "cancel" | "archive";
 
@@ -172,29 +173,25 @@ export function ActionPageClient({
   };
 
   return (
-    <main className="shell replay-shell">
-      <header className="replay-header">
-        <div>
-          <span className="eyebrow">Control plane action</span>
-          <h1>{copy.title}</h1>
-          <p className="lead">{nextRun ? "ReplayX finished the requested control-plane action." : copy.summary}</p>
-        </div>
-      </header>
-      <section className="story-grid">
-        <article className="card">
-          <span className="section-kicker">Run</span>
-          <h2>{activeRun.runId}</h2>
-          <p>{activeRun.issue.text}</p>
-        </article>
-        <article className="card">
-          <span className="section-kicker">Status</span>
-          <h2>{activeRun.status.replaceAll("_", " ")}</h2>
-          <p>{activeRun.currentBlocker ?? "No blocker recorded."}</p>
-        </article>
+    <AppFrame active="action" statusDetail="Control action">
+      <PageHeader
+        eyebrow="Control plane action"
+        lead={nextRun ? "ReplayX finished the requested control-plane action." : copy.summary}
+        meta={<StatusPill tone={blockedActionReason ? "warning" : nextRun ? "success" : "accent"}>{action}</StatusPill>}
+        title={copy.title}
+      />
+      <section className="two-up-grid">
+        <MetricCell label="Run" value={activeRun.runId} detail={activeRun.issue.text} tone="accent" />
+        <MetricCell
+          label="Status"
+          value={activeRun.status.replaceAll("_", " ")}
+          detail={activeRun.currentBlocker ?? "No blocker recorded."}
+          tone={activeRun.status === "failed" || activeRun.status === "blocked" ? "danger" : "neutral"}
+        />
       </section>
       {error ? (
         <article className="workspace-panel" style={{ marginTop: "1.5rem" }}>
-          <span className="section-kicker">Action failed</span>
+          <span className="eyebrow">Action failed</span>
           <p>{error.error}</p>
           <p className="ghost-text">{error.cause}</p>
           <p className="ghost-text">{error.fix}</p>
@@ -207,7 +204,7 @@ export function ActionPageClient({
       ) : null}
       {!error && blockedActionReason ? (
         <article className="workspace-panel" style={{ marginTop: "1.5rem" }}>
-          <span className="section-kicker">Action unavailable</span>
+          <span className="eyebrow">Action unavailable</span>
           <p className="ghost-text">{blockedActionReason}</p>
         </article>
       ) : null}
@@ -226,6 +223,6 @@ export function ActionPageClient({
           </Link>
         ) : null}
       </div>
-    </main>
+    </AppFrame>
   );
 }

@@ -38,12 +38,17 @@ coverage/
 .vercel/
 .idea/
 .vscode/
+.claude/
+.codex-qa/
 
 # Temporary files
 tmp/
 temp/
 *.tmp
 artifacts/
+!dashboard/app/runs/\[runId\]/artifacts/
+!dashboard/app/runs/\[runId\]/artifacts/\[artifactId\]/
+!dashboard/app/runs/\[runId\]/artifacts/\[artifactId\]/page.tsx
 /.playwright-mcp
 /.specstory
 /.replayx-runs

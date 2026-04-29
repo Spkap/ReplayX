@@ -41,7 +41,7 @@ export const runNotFoundControlPlaneError = (runId?: string): ControlPlaneErrorP
 export const invalidRunRequestControlPlaneError = (): ControlPlaneErrorPayload => ({
   error: "ReplayX needs a non-empty incident description.",
   cause:
-    "Run creation expects a text payload so the seeded incident selector can map the request to a supported incident bundle.",
+    "Run creation expects a text payload so ReplayX can create a realtime incident packet and preserve the original operator report.",
   fix:
     "Send a JSON body with text, for example: {\"source\":\"manual\",\"text\":\"checkout is overselling stock during concurrent orders\"}.",
   docsPath: controlPlaneDocsPaths.invalidRequest

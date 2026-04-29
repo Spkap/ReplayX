@@ -1,6 +1,41 @@
 import { spawn } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
 
 const withSlack = process.argv.includes("--with-slack");
+const parseEnvFile = (filePath) => {
+  if (!existsSync(filePath)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    readFileSync(filePath, "utf8")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#") && line.includes("="))
+      .map((line) => {
+        const equalsIndex = line.indexOf("=");
+        const key = line.slice(0, equalsIndex).trim();
+        const rawValue = line.slice(equalsIndex + 1).trim();
+        const value = rawValue.replace(/^['"]|['"]$/g, "");
+        return [key, value];
+      })
+  );
+};
+
+const sharedEnv = withSlack
+  ? {
+      ...parseEnvFile(path.resolve(process.cwd(), "slack/.env")),
+      ...process.env
+    }
+  : process.env;
+
+if (withSlack) {
+  sharedEnv.REPLAYX_SLACK_API_URL ||= "http://localhost:3000";
+  sharedEnv.REPLAYX_DASHBOARD_URL ||= "http://localhost:3001";
+  sharedEnv.REPLAYX_ORCHESTRATOR_URL ||= "http://localhost:3001";
+}
+
 const commands = [
   {
     name: "demo-app",
@@ -51,7 +86,7 @@ for (const command of commands) {
 
   const child = spawn(command.command, command.args, {
     stdio: "inherit",
-    env: process.env,
+    env: sharedEnv,
     shell: process.platform === "win32"
   });
 

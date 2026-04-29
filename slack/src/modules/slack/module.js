@@ -10,7 +10,6 @@ function createSlackModule({
   signingSecret = process.env.SLACK_SIGNING_SECRET,
   bugsChannelId = process.env.SLACK_BUGS_CHANNEL_ID,
   dashboardBaseUrl = process.env.REPLAYX_DASHBOARD_URL,
-  goldenIncidentId = process.env.REPLAYX_GOLDEN_INCIDENT_ID,
   orchestratorBaseUrl = process.env.REPLAYX_ORCHESTRATOR_URL,
   internalApiToken = process.env.REPLAYX_INTERNAL_API_TOKEN,
   slackService,
@@ -34,7 +33,7 @@ function createSlackModule({
       slackClient: effectiveSlackClient,
       bugsChannelId,
       dashboardBaseUrl,
-      goldenIncidentId,
+      internalApiToken,
       replayXClient: effectiveReplayXClient,
       logger: effectiveLogger,
     });

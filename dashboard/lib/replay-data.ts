@@ -388,7 +388,7 @@ function summarizeFix(bundle: {
       summary: "The dashboard is replay-ready before the fix arena lands. This card will show the chosen fix once Phase 7 artifacts exist.",
       points: [
         "Winning diagnosis will roll into minimal, safe, and durable fix strategies.",
-        "The demo keeps this visible so judges see what has landed and what comes next.",
+        "The workspace keeps this visible so operators can see what has landed and what still needs action.",
         "No live backend call is required for the replay path."
       ]
     };
@@ -413,7 +413,7 @@ function summarizePostmortem(incident: NormalizedIncident) {
     points: [
       `Customer impact already captured: ${incident.summary.customerImpact}`,
       "Later phases will normalize root cause, fix choice, and guardrails into a reusable narrative.",
-      "The replay UI reserves this slot now so the final demo feels complete."
+      "The replay UI reserves this slot now so the full incident story stays intact as more artifacts land."
     ]
   };
 }
@@ -426,7 +426,7 @@ function summarizeSkill(incident: NormalizedIncident) {
     points: [
       `Incident class: ${incident.incidentClass}`,
       "Expected skill contents: repro clues, fix cues, falsification notes, and constraints.",
-      "This slot becomes a powerful final beat in the 2-minute demo."
+      "This slot becomes the reusable memory handoff once ReplayX validates the incident class."
     ]
   };
 }
@@ -436,7 +436,7 @@ function buildBeforeAfter(incident: NormalizedIncident, repro: ReplayReproPhaseO
   const healthy = repro?.command_results?.healthy;
 
   return {
-    beforeLabel: "Before: the app breaks in a way a judge can feel immediately",
+    beforeLabel: "Before: the app breaks in a way an operator can verify immediately",
     beforeEvidence:
       failing?.stderr?.trim() ??
       `${incident.summary.symptom}\n\nNo failing stderr artifact found yet for this incident replay.`,
@@ -482,7 +482,7 @@ function buildTimeline(bundle: {
     {
       title: "Fix, proof, and reusable knowledge complete the loop",
       detail:
-        "Later-phase artifacts slot into this replay without changing the judge-facing story: proposed fix, verification plan, postmortem, and skill.",
+        "Later-phase artifacts slot into this replay without changing the incident story: proposed fix, verification plan, postmortem, and skill.",
       status: "next" as const
     }
   ];
@@ -567,7 +567,7 @@ export async function loadReplayIncidentBundle(incidentId: string): Promise<Repl
       : summarizeSkill(incident),
     beforeAfter: dashboardReplay
       ? {
-          beforeLabel: "Before: the app breaks in a way a judge can feel immediately",
+          beforeLabel: "Before: the app breaks in a way an operator can verify immediately",
           beforeEvidence: dashboardReplay.before_after.before,
           afterLabel: "Next: the verification plan after applying the chosen patch",
           afterEvidence: dashboardReplay.before_after.after

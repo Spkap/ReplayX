@@ -4,7 +4,7 @@
 
 This file is not for ReplayX's internal runtime.
 
-It is for you, the operator, to use with Codex while building ReplayX for the hackathon.
+It is for you, the operator, to use with Codex while building ReplayX as a product.
 
 Use these prompts in sequence. Each one tells Codex what to build next in this repository.
 
@@ -16,12 +16,12 @@ They are designed to:
 
 ## Demo-First Framing
 
-For the hackathon, keep this mental model explicit:
+Keep this mental model explicit:
 
 - `demo_app/` is the broken target system
 - ReplayX is the incident-response product
 - Codex is the reasoning and coding brain inside ReplayX
-- the ReplayX dashboard or replay UI is the main judge-facing product surface
+- the ReplayX dashboard or replay UI is the main operator-facing product surface
 - Slack is an intake trigger, not the whole product
 
 The demo should not feel like "we built a broken app." It should feel like:
@@ -54,7 +54,7 @@ For the authoritative implementation status, see [`Docs/replayx-architecture.md`
 
 ## Demo Strategy Rules
 
-Optimize for the 2-minute demo video.
+Optimize for a concise product walkthrough.
 
 That means:
 
@@ -92,7 +92,7 @@ Do not include the whole repository unless the phase actually needs it.
 Use this once at the start of a fresh Codex session.
 
 ```text
-We are building ReplayX for a Codex hackathon.
+We are building ReplayX as a Codex-first incident response product.
 
 ReplayX is a Codex-first incident response system that turns an incident bundle into:
 - ranked diagnosis
@@ -125,7 +125,7 @@ Working style:
 Use this first.
 
 ```text
-Build the initial ReplayX hackathon repo scaffold in this repository.
+Build the initial ReplayX repo scaffold in this repository.
 
 Goal:
 Create the directory and file structure needed for a Codex-first ReplayX implementation.
@@ -174,7 +174,7 @@ Phase 1 is about repo structure, packages, and scaffolding rather than internal 
 Implement the ReplayX incident intake layer.
 
 Goal:
-Define the normalized incident bundle contract and create seeded incident fixtures for the hackathon demo.
+Define the normalized incident bundle contract and create seeded incident fixtures for the launch registry.
 
 Requirements:
 - create a strict TypeScript type for normalized incidents
@@ -184,7 +184,7 @@ Requirements:
   1. checkout race condition
   2. auth token/session failure
   3. null/data-shape failure
-- keep the incidents realistic but hackathon-manageable
+- keep the incidents realistic but tightly scoped
 
 Do not:
 - build the whole orchestrator yet
@@ -209,7 +209,7 @@ Phase 2 should align with the incident payload shape documented in `Docs/replayx
 ## Phase 3 Prompt: Build The Demo App
 
 ```text
-Implement the hackathon demo application for ReplayX.
+Implement the reference application for ReplayX.
 
 Goal:
 Create a small app that ReplayX can diagnose and fix during the demo.
@@ -247,10 +247,10 @@ Phase 3 is about creating a target system that later ReplayX workers will diagno
 ## Phase 3.5 Prompt: Add Pre-Seeding Checklist
 
 ```text
-Add a concise hackathon pre-seeding checklist to the repository docs.
+Add a concise preflight seeding checklist to the repository docs.
 
 Goal:
-Make sure the team can prepare the demo before hackathon day and avoid live setup failures.
+Make sure the team can prepare the environment before a walkthrough and avoid live setup failures.
 
 The checklist should cover:
 - environment setup
@@ -344,7 +344,7 @@ Requirements:
 - do not use OpenAI Agents SDK
 - use ReplayX-owned orchestration with @openai/codex-sdk as the intended runtime model
 - this phase should introduce the first real bounded Codex worker fan-out for the project
-- define 4 to 8 strong diagnosis worker specializations for the hackathon build
+- define 4 to 8 strong diagnosis worker specializations for the launch build
 - each worker must return structured JSON
 - include ranking logic
 - keep the implementation inspectable and easy to demo
@@ -403,8 +403,8 @@ Requirements:
 - build this as a separate phase module
 - accept ranked diagnosis results
 - return validated and rejected candidates in a structured result
-- keep the logic hackathon-simple but real
-- optimize for explaining the phase clearly to judges
+- keep the logic tightly scoped but real
+- optimize for explaining the phase clearly to operators
 - prefer counter-checks and falsification logic over generic commentary
 
 Do not:
@@ -473,7 +473,7 @@ It should return:
 - score
 - status
 
-Keep the hackathon focus:
+Keep the launch focus:
 - make it work for the seeded incidents
 - avoid generalized framework code
 
@@ -520,7 +520,7 @@ That means:
 Implement the ReplayX dashboard replay UI and the review/regression proof artifacts needed for the demo.
 
 Goal:
-Create the first real ReplayX judge-facing product surface and make the winning fix legible through proof.
+Create the first real ReplayX operator-facing product surface and make the winning fix legible through proof.
 
 Requirements:
 - build a real `dashboard/` replay UI instead of leaving it as a placeholder
@@ -543,7 +543,7 @@ Verification:
 - the replay path works even if live Codex fan-out is disabled
 
 Done when:
-- ReplayX has a real judge-facing frontend surface
+- ReplayX has a real operator-facing frontend surface
 - one full replay run can be shown visually from incident intake through proof
 - the replay UI is strong enough to anchor the 2-minute video
 ```
@@ -567,12 +567,12 @@ That means:
 ## Phase 9 Prompt: Build Skill Writer And Postmortem
 
 ```text
-Implement the demo script, judge-start-here flow, and artifact-writing phases.
+Implement the walkthrough script, start-here flow, and artifact-writing phases.
 
 Goal:
 Generate:
-- a precise 2-minute demo script
-- a judge-start-here path in the repo
+- a precise 2-minute product walkthrough script
+- a start-here path in the repo
 - reusable skill artifact
 - concise postmortem
 
@@ -595,7 +595,7 @@ Requirements:
 
 Verification:
 - the repo contains a script or markdown artifact for the exact 2-minute flow
-- the README has a clear judge-facing start path
+- the README has a clear start path for new operators
 - skill artifact is created for a mocked successful run
 - postmortem output is generated from structured run data
 
@@ -629,7 +629,7 @@ That means:
 Wire the end-to-end golden-path orchestrator for the demo.
 
 Goal:
-Make orchestrator/main.ts run the full hackathon path:
+Make orchestrator/main.ts run the full primary path:
 1. load incident
 2. normalize incident
 3. fast-path skill match
@@ -689,10 +689,10 @@ That means the end-to-end pipeline should route work according to the prompt pac
 ## Phase 11 Prompt: Build Hackathon Dashboard
 
 ```text
-Build the polished hackathon dashboard and replay experience.
+Build the polished dashboard and replay experience.
 
 Goal:
-Turn the functional replay UI into the main judge-facing ReplayX product surface.
+Turn the functional replay UI into the main ReplayX product surface.
 
 It should show:
 - incident summary
@@ -714,7 +714,7 @@ Requirements:
 
 Verification:
 - dashboard can render a completed run artifact
-- the UI can carry the 2-minute demo video visually without heavy narration
+- the UI can carry a short product walkthrough visually without heavy narration
 ```
 
 ### Phase 11 Current State
@@ -753,7 +753,7 @@ Requirements:
   - winner selected
   - skill written
   - pipeline complete
-- keep the replay path dead simple so it is a reliable hackathon fallback
+- keep the replay path dead simple so it is a reliable proof fallback
 
 Verification:
 - dashboard can render a mocked saved event stream end to end
@@ -761,7 +761,7 @@ Verification:
 
 ### Phase 11.5 Current State
 
-The dashboard stays proof-first from the homepage and still supports replay from saved artifacts as the stable fallback path for the hackathon demo.
+The dashboard stays evidence-led from the homepage and still supports replay from saved artifacts as the stable fallback path for walkthroughs and incident reviews.
 
 Saved event-stream playback is still optional polish, not a blocker, because the replay artifact already provides the reliable demo mode.
 
@@ -772,7 +772,7 @@ This phase should stay aligned to the worker outputs and artifacts defined by th
 ## Phase 12 Prompt: Build Demo Script And Judging Flow
 
 ```text
-Create the final hackathon demo package.
+Create the final product walkthrough package.
 
 Goal:
 Package the project so the demo is reliable and easy to narrate.
@@ -788,7 +788,7 @@ Deliver:
 
 Also:
 - add a concise demo section to README.md
-- make the script optimized for judges, not engineers only
+- make the script optimized for technical buyers and operators, not engineers only
 
 Verification:
 - commands are coherent
@@ -810,7 +810,7 @@ This phase is presentation-oriented. It should reference the worker behavior def
 ## Phase 13 Prompt: Package The Submission Story
 
 ```text
-Prepare the final hackathon submission story for ReplayX.
+Prepare the final product narrative for ReplayX.
 
 Goal:
 Make the repo and demo read like a winning product, not just an engineering experiment.
@@ -820,16 +820,16 @@ Deliver:
 - a 3-line product explanation
 - a short "why Codex-first" explanation
 - a short "why this matters" explanation
-- a concise README section for judges
+- a concise README section for external readers
 
-Use the strongest parts of the older hackathon plan for product storytelling, but keep all implementation claims aligned with the current Codex-first architecture.
+Use the strongest parts of the older planning work for product storytelling, but keep all implementation claims aligned with the current Codex-first architecture.
 
 Do not mention OpenAI Agents SDK as the core runtime.
 ```
 
 ### Phase 13 Current State
 
-README now frames the judge flow correctly, but submission-polish passes can still improve the final pitch, short product explanation, and repo copy before submission.
+README now frames the product flow correctly, but polish passes can still improve the final pitch, short product explanation, and repo copy before external review.
 
 ### Phase 13 Operator Note
 

@@ -2,7 +2,7 @@
 
 ## What This Repo Is
 
-ReplayX is a Codex-first incident response system built for the OpenAI Codex Hackathon.
+ReplayX is a Codex-first incident response system for engineering teams.
 
 It turns a production-style incident bundle into:
 
@@ -43,7 +43,7 @@ ReplayX/
 ├── orchestrator/           ← Codex-first TypeScript orchestration
 ├── incidents/              ← Seeded incident bundles
 ├── demo_app/               ← Intentionally broken target app
-├── dashboard/              ← Next.js judge-facing UI
+├── dashboard/              ← Next.js operator and leadership UI
 ├── slack/                  ← Slack intake and handoff service
 ├── skills/                 ← Reusable skill artifacts
 ├── tests/                  ← Orchestrator tests
@@ -69,16 +69,16 @@ When reviewing frontend work, flag anything that breaks the design system or fee
 
 ## Build Priority
 
-Optimize for a winning hackathon demo, not framework breadth.
+Optimize for a credible incident-response product, not framework breadth.
 
 That means:
 
 - one clear end-to-end incident flow
-- strong seeded incidents
+- strong launch incident classes with visible capability boundaries
 - bounded diagnosis workers
 - bounded fix workers
 - visible verification and artifacts
-- a dashboard judges can understand in under two minutes
+- operator surfaces that explain state in under two minutes
 
 ## Prompting Rules
 
@@ -92,7 +92,7 @@ That means:
 ## Working Rules
 
 - Read the relevant repo files before editing.
-- Keep changes demo-scoped and tightly contained.
+- Keep changes product-scoped and tightly contained.
 - Do not reintroduce old agent-framework abstractions.
 - Run the narrowest useful verification after each batch.
 - Keep docs aligned with the actual state of the repo.
@@ -121,26 +121,73 @@ A task is complete only when:
 - Architecture: [`Docs/replayx-architecture.md`](Docs/replayx-architecture.md)
 - Phase model: [`PIPELINE.md`](PIPELINE.md)
 - Adding incident classes: [`Docs/replayx-incident-authoring-guide.md`](Docs/replayx-incident-authoring-guide.md)
-- Demo operations: [`Docs/replayx-demo-runbook.md`](Docs/replayx-demo-runbook.md)
+- Launch operations: [`Docs/replayx-demo-runbook.md`](Docs/replayx-demo-runbook.md)
 
 
 <claude-mem-context>
 # Memory Context
 
-# [ReplayX] recent context, 2026-04-21 11:26pm GMT+5:30
+# [ReplayX] recent context, 2026-04-30 1:06am GMT+5:30
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 5 obs (2,471t read) | 199,478t work | 99% savings
+Stats: 50 obs (19,910t read) | 2,007,505t work | 99% savings
 
 ### Apr 21, 2026
-56 10:48p 🔵 ReplayX Project Structure — Directory Layout Confirmed
-57 " 🔵 ReplayX Full Architecture — 8-Phase Codex-First Incident Response System
 60 10:49p 🔵 ReplayX Dashboard — Full Page Structure Confirmed
-61 " 🔵 ReplayX Test Results — 2 Failing Tests in live-runs, Dashboard Build Clean, Slack 11/11 Pass
 62 10:51p 🔴 Live Run Pipeline Fixed — Node.js Test Runner Detection Bug in shouldCreateLivePullRequest()
+### Apr 23, 2026
+400 10:42a 🔵 ReplayX — gstack Runtime State Audited on main Branch
+401 10:43a 🔵 ReplayX — Full Architecture, Services, Commands, and Test Suite Audited
+403 " 🔵 ReplayX — Local Service Ports, Browser URLs, and Dashboard Routes Fully Mapped
+404 " 🔵 ReplayX Dashboard Design System — Full Aesthetic Rules, Color Palette, and Anti-Slop Constraints Audited
+406 10:44a 🔵 ReplayX — Full Test Suite Green: 20/20 Root Tests, 11/11 Slack Tests, Dashboard Build Clean, Typecheck Passes
+408 " 🔵 ReplayX — Slack .env Has Real Bot Credentials; Root .env Has No API Keys; REPLAYX_INTERNAL_API_TOKEN Is Placeholder
+409 " 🔵 ReplayX Local Dev Stack Started — Demo App on 4311, Dashboard on 3001
+412 10:49a 🔵 ReplayX Live Run Client — Tab Architecture Fully Audited
+416 10:57a ⚖️ ReplayX Product Pivot — Hackathon Mindset Explicitly Rejected
+417 " 🔵 ReplayX — Hackathon Language Located Across 8+ Files
+418 " 🔵 ReplayX Live Dashboard — Full UI Tab Structure and Rail Architecture Audited
+421 11:09a 🟣 ReplayX Capability-Limited Run Mode — Graceful Operator Handoff for Unmatched Incidents
+422 " 🔴 ReplayX — Two New Tests Failed Before Capability-Limited Implementation Landed
+423 11:12a 🟣 ReplayX All 21 Tests Green — Capability-Limited Run Mode Fully Verified
+424 " 🟣 ReplayX Dashboard — URL-Synced Tab State, Artifact Deep Links, and Rejected Theories Panel
+### Apr 27, 2026
+846 10:41p 🟣 ReplayX Full Agentic QA Review — Plan Initiated
+847 10:42p 🔵 ReplayX Repo — 28 Modified + 6 Untracked Files vs origin/main
+848 " 🔵 brooks-review Skill — Shared Dependency Files Missing from ~/.codex/skills/_shared/
+849 " 🔵 ReplayX Package Structure — Three Isolated Runtimes, No Turbo/Monorepo Tooling
+853 10:45p 🔵 brooks-lint Skill Suite — _shared/ Directory Entirely Absent from ~/.codex/skills/
+854 " 🟣 ReplayX — 5 Parallel Agentic Review Agents Spawned Simultaneously
+855 " 🔵 Slack Service Tests — 11/11 Pass, Full Integration Coverage Confirmed
+856 " 🔵 ReplayX Uncommitted Diff — 1602 Insertions, 562 Deletions Across 30 Files
+857 " 🔵 ReplayX Codex-First Constraint — Confirmed Enforced Across Codebase
+858 10:53p 🔵 ReplayX End-to-End Architecture — Full Flow Mapped from Incidents to Dashboard
+859 " 🔵 ReplayX Integration Breaks — Mismatched Routes, Ports, and Missing Validation Checks Identified
+862 11:00p 🔴 runReplayXLivePipeline — Approval Gate Bypass Fixed
+863 " 🔴 retryReplayXRun — Incident Selection Lost on Retry
+864 " 🔴 Node.js Version Requirement Bumped to 24.0
+865 " 🔴 dev-all.mjs — Shared Env Not Propagated to Child Processes
+866 " 🔴 .gitignore — Dashboard Artifact Route Page Was Being Silently Excluded
+867 " ✅ REPLAYX_SLACK_API_URL Added to Both .env.example Files and All Docs
+868 " 🔵 ReplayX Codebase State — Current Architecture Confirmed
+869 11:02p 🔵 ReplayX Checkout Race Condition — Confirmed Failure Surface
+885 11:24p 🔵 ReplayX Gstack Environment State — Session Config Confirmed
+886 " ⚖️ ReplayX $100M Product Direction — Live Incidents Replace Seeded Demo as Default
+887 " 🔵 Explorer Agent Spawn Constraint — Full-History Fork Blocks Agent Type Override
+889 11:26p 🟣 ReplayX live-runs.ts — Realtime Mode Now Default, Seeded Demo Path Gated
+890 " 🔵 ReplayX Live-Run Path — Seeded Demo vs Real Incident Audit Initiated
+891 " 🟣 ReplayX Realtime Investigation Engine — Core Infrastructure Added to live-runs.ts
+892 11:28p 🟣 runRealtimeInvestigationPipeline — Full Phase Pipeline Wired into runReplayXLivePipeline
+893 " ✅ live-runs.test.ts — Tests Updated to Assert Realtime-First Behavior
+894 11:45p 🔵 ReplayX live-runs.ts — Full Architecture Audited
+895 " 🔴 live-runs.ts — Realtime Routing Decision Logic Fixed
+896 " ✅ tests/live-runs.test.ts — Test Suite Aligned to Realtime-First Product Direction
+897 " 🔵 ReplayX Dashboard Homepage — Architecture and Auth Pattern Confirmed
+898 " 🔵 Slack Service — goldenIncidentId Fallback Pattern When replayXClient Not Configured
+899 " ⚖️ ReplayX $100M Direction — Realtime Investigation as Default, Fixture/Eval as Explicit-Only
 
-Access 199k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 2008k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

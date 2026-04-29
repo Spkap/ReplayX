@@ -160,8 +160,8 @@ test("POST /slack/events replies to app mentions in the bugs channel", async () 
     channel: "CBUGS123",
     text: [
       "ReplayX logged this bug report: app is broken",
-      "Next: routing it into the ReplayX incident flow for `incident-checkout-race-001`.",
-      "Dashboard handoff: https://replayx.app/replay/incident-checkout-race-001",
+      "Live run not started: ReplayX orchestration API is not configured for this Slack service.",
+      "Dashboard handoff: https://replayx.app/new",
     ].join("\n"),
     threadTs: "171234.123",
   });
@@ -170,8 +170,7 @@ test("POST /slack/events replies to app mentions in the bugs channel", async () 
     result: {
       posted: true,
       ts: "171234.200",
-      incidentId: "incident-checkout-race-001",
-      handoffTarget: "https://replayx.app/replay/incident-checkout-race-001",
+      handoffTarget: "https://replayx.app/new",
     },
   });
   assert.deepEqual(entries, [
@@ -194,10 +193,10 @@ test("POST /slack/events replies to app mentions in the bugs channel", async () 
       details: {
         channel: "CBUGS123",
         threadTs: "171234.123",
-        cleanedText: "app is broken",
-        goldenIncidentId: "incident-checkout-race-001",
+        cleanedTextLength: 13,
         runId: undefined,
-        handoffTarget: "https://replayx.app/replay/incident-checkout-race-001",
+        handoffTarget: "https://replayx.app/new",
+        degradedReason: undefined,
       },
     },
     {
@@ -219,6 +218,94 @@ test("POST /slack/events replies to app mentions in the bugs channel", async () 
       },
     },
   ]);
+});
+
+test("POST /slack/events ignores duplicate Slack event ids after a successful app mention", async () => {
+  const calls = [];
+  const app = createApp({
+    signingSecret,
+    bugsChannelId: "CBUGS123",
+    now: fixedNow,
+    slackClient: {
+      postMessage: async (payload) => {
+        calls.push(payload);
+        return { posted: true };
+      },
+    },
+  });
+
+  const payload = {
+    type: "event_callback",
+    team_id: "T123",
+    event_id: "Ev123",
+    event: {
+      type: "app_mention",
+      channel: "CBUGS123",
+      text: "<@UREPLAYX> app is broken",
+      ts: "171234.123",
+    },
+  };
+  const { rawBody, signature } = signPayload(payload);
+
+  const first = await request(app)
+    .post("/slack/events")
+    .set("Content-Type", "application/json")
+    .set("X-Slack-Request-Timestamp", String(fixedTimestamp))
+    .set("X-Slack-Signature", signature)
+    .send(rawBody);
+
+  const retry = await request(app)
+    .post("/slack/events")
+    .set("Content-Type", "application/json")
+    .set("X-Slack-Request-Timestamp", String(fixedTimestamp))
+    .set("X-Slack-Signature", signature)
+    .set("X-Slack-Retry-Num", "1")
+    .send(rawBody);
+
+  assert.equal(first.status, 200);
+  assert.equal(retry.status, 200);
+  assert.deepEqual(retry.body, { ok: true, ignored: true, reason: "duplicate_event" });
+  assert.equal(calls.length, 1);
+});
+
+test("POST /slack/events signs the new-run fallback when operator auth is enabled", async () => {
+  const calls = [];
+  const app = createApp({
+    signingSecret,
+    internalApiToken: "internal-secret",
+    bugsChannelId: "CBUGS123",
+    dashboardBaseUrl: "https://replayx.app",
+    now: fixedNow,
+    slackClient: {
+      postMessage: async (payload) => {
+        calls.push(payload);
+        return { posted: true };
+      },
+    },
+  });
+
+  const payload = {
+    type: "event_callback",
+    event: {
+      type: "app_mention",
+      channel: "CBUGS123",
+      text: "<@UREPLAYX> app is broken",
+      ts: "171234.123",
+    },
+  };
+  const { rawBody, signature } = signPayload(payload);
+
+  const response = await request(app)
+    .post("/slack/events")
+    .set("Content-Type", "application/json")
+    .set("X-Slack-Request-Timestamp", String(fixedTimestamp))
+    .set("X-Slack-Signature", signature)
+    .send(rawBody);
+
+  assert.equal(response.status, 200);
+  assert.match(calls[0].text, /Dashboard handoff: https:\/\/replayx\.app\/new\?access=/);
+  assert.doesNotMatch(calls[0].text, /\/replay\//);
+  assert.match(response.body.result.handoffTarget, /^https:\/\/replayx\.app\/new\?access=/);
 });
 
 test("POST /slack/events creates a ReplayX live run when orchestrator client is configured", async () => {
@@ -291,11 +378,6 @@ test("POST /slack/events creates a ReplayX live run when orchestrator client is 
             url: "https://dashboard.example/live/run_live123",
             style: "primary",
           },
-          {
-            type: "button",
-            text: { type: "plain_text", text: "Retry Run" },
-            url: "https://dashboard.example/runs/run_live123/actions/retry",
-          },
         ],
       },
     ],
@@ -303,9 +385,66 @@ test("POST /slack/events creates a ReplayX live run when orchestrator client is 
   assert.deepEqual(response.body.result, {
     posted: true,
     ts: "171234.201",
-    incidentId: "incident-checkout-race-001",
     runId: "run_live123",
     handoffTarget: "https://dashboard.example/live/run_live123",
+  });
+});
+
+test("POST /slack/events does not fall back to golden replay when live run creation fails", async () => {
+  const calls = [];
+  const app = createApp({
+    signingSecret,
+    bugsChannelId: "CBUGS123",
+    dashboardBaseUrl: "https://dashboard.example",
+    now: fixedNow,
+    slackClient: {
+      postMessage: async (payload) => {
+        calls.push(payload);
+        return { posted: true, ts: "171234.202" };
+      },
+    },
+    replayXClient: {
+      isConfigured: () => true,
+      createRun: async () => {
+        throw new Error("orchestrator unavailable");
+      },
+    },
+  });
+
+  const payload = {
+    type: "event_callback",
+    event: {
+      type: "app_mention",
+      channel: "CBUGS123",
+      text: "<@UREPLAYX> checkout is overselling inventory",
+      ts: "171234.123",
+      user: "U123",
+    },
+  };
+  const { rawBody, signature } = signPayload(payload);
+
+  const response = await request(app)
+    .post("/slack/events")
+    .set("Content-Type", "application/json")
+    .set("X-Slack-Request-Timestamp", String(fixedTimestamp))
+    .set("X-Slack-Signature", signature)
+    .send(rawBody);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(calls[0], {
+    channel: "CBUGS123",
+    text: [
+      "ReplayX logged this bug report: checkout is overselling inventory",
+      "Live run not started: ReplayX orchestration failed before a live run could be created.",
+      "Dashboard handoff: https://dashboard.example/new",
+    ].join("\n"),
+    threadTs: "171234.123",
+  });
+  assert.deepEqual(response.body.result, {
+    posted: true,
+    ts: "171234.202",
+    handoffTarget: "https://dashboard.example/new",
+    degradedReason: "ReplayX orchestration failed before a live run could be created.",
   });
 });
 
@@ -348,8 +487,8 @@ test("POST /slack/events replies in-thread when the mention came from a thread",
     channel: "CBUGS123",
     text: [
       "ReplayX logged this bug report: still broken in thread",
-      "Next: routing it into the ReplayX incident flow for `incident-checkout-race-001`.",
-      "Dashboard handoff: /replay/incident-checkout-race-001",
+      "Live run not started: ReplayX orchestration API is not configured for this Slack service.",
+      "Dashboard handoff: /new",
     ].join("\n"),
     threadTs: "171234.100",
   });
@@ -357,8 +496,7 @@ test("POST /slack/events replies in-thread when the mention came from a thread",
     ok: true,
     result: {
       posted: true,
-      incidentId: "incident-checkout-race-001",
-      handoffTarget: "/replay/incident-checkout-race-001",
+      handoffTarget: "/new",
     },
   });
 });

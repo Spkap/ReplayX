@@ -1,24 +1,32 @@
-# Skills
+# Skills Catalog
 
-Reusable ReplayX skill artifacts.
+Reusable incident skills written by Phase 8 of the ReplayX orchestrator.
 
-## What Skills Are
+---
 
-A skill is a machine-readable pattern that the Skill Match phase (Phase 2) uses to detect known incident classes. When a skill scores above the 0.85 threshold against the current incident, the phase outputs `fast_path_available`. In the current golden-run orchestrator this flag is recorded in the artifact but all phases still run. Future orchestrator versions can use the flag to short-circuit.
+## What a Skill Is
 
-This is the feedback loop: every incident that completes Phase 8 writes a new skill, improving Skill Match coverage for future incidents.
+A skill is a compact YAML artifact produced at the end of every successfully resolved incident. It captures the winning diagnosis worker, the fix strategy that was selected, and the match signals that identify the incident class.
 
-## Skill Artifacts
+Phase 2 (Skill Match) reads every file in this directory at the start of each new run and scores it against the incoming incident. A match score ≥ 0.85 triggers `fast_path_available` — the orchestrator knows this pattern has been resolved before.
 
-| File | Incident class | Written by |
-|---|---|---|
-| `incident-checkout-race-001.yaml` | `checkout-race-condition` | Phase 8 golden run |
-| `incident-auth-session-002.yaml` | `auth-token-session-failure` | Phase 8 golden run |
-| `incident-null-shape-003.yaml` | `null-data-shape-failure` | Phase 8 golden run |
+This is the self-improving loop: every incident that runs through Phase 8 extends the catalog. No separate training step required.
 
-## Format
+---
 
-Skills are written by `buildSkillYaml()` in `orchestrator/phases/postmortem-and-skill.ts`. Field reference:
+## Scoring
+
+| Signal | Weight |
+|---|---|
+| `incident_class` match | 0.65 |
+| `service` match | 0.25 |
+| `id` exact match | 0.10 |
+
+Total score ≥ 0.85 → `fast_path_available: true` in the Phase 2 artifact.
+
+---
+
+## Skill Format
 
 ```yaml
 id: incident-checkout-race-001
@@ -31,14 +39,28 @@ fix_strategy: safe_fix
 demo_summary: Best balance of safety and clarity among the proposed fixes.
 ```
 
-The `match.service` and `match.incident_class` fields are what Skill Match reads to score a new incident against the catalog. A score above `0.85` triggers the `fast_path_available` decision.
+| Field | Description |
+|---|---|
+| `id` | Matches `incidentId` from the original incident fixture |
+| `title` | Human-readable incident title |
+| `match.service` | Service the incident occurred in — used in scoring |
+| `match.incident_class` | Incident class — heaviest scoring signal |
+| `match.winning_worker` | Which diagnosis worker identified the root cause |
+| `fix_strategy` | Winning fix strategy: `minimal_fix`, `safe_fix`, or `durable_fix` |
+| `demo_summary` | One-line rationale for the winning strategy |
 
+---
 
-## Storage
+## Included Skills
 
-The canonical skill copy lives here in `skills/`. Each phase run also writes a per-incident copy to `artifacts/<incidentId>/skill.yaml` for audit trail purposes.
+| File | Incident | Winning worker | Fix strategy |
+|---|---|---|---|
+| `incident-checkout-race-001.yaml` | Checkout race condition | `diagnosis_concurrency` | `safe_fix` |
+| `incident-auth-session-002.yaml` | Auth token session failure | `diagnosis_auth` | `safe_fix` |
+| `incident-null-shape-003.yaml` | Null data shape failure | `diagnosis_data_shape` | `safe_fix` |
 
-## Reference
+---
 
-- Phase that writes skills: `orchestrator/phases/postmortem-and-skill.ts`
-- Phase that reads skills: `orchestrator/phases/skill-match.ts`
+Skills are written automatically at Phase 8 completion — do not edit them by hand. To add a new incident class:
+
+→ [Docs/replayx-incident-authoring-guide.md](../Docs/replayx-incident-authoring-guide.md)

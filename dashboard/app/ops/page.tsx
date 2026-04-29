@@ -9,6 +9,7 @@ import {
 import { unauthorizedControlPlaneError } from "../../lib/control-plane-errors";
 import { ControlPlaneErrorPanel } from "../../components/control-plane-error-panel";
 import { listReplayXRuns } from "../../lib/live-runs";
+import { AppFrame, EmptyState, MetricCell, PageHeader, SectionHeader, StatusPill } from "../../components/replayx-ui";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,18 +27,28 @@ export default async function OpsPage({
     !isControlPlaneAccessTokenValid(accessToken, { scope: "control-plane" })
   ) {
     return (
-      <main className="shell replay-shell">
+      <AppFrame active="ops" statusDetail="Signed link required">
         <ControlPlaneErrorPanel
           kicker="Unauthorized"
           title="This ReplayX control-plane page requires a signed operator link"
           problem={unauthorizedControlPlaneError("This ReplayX control-plane page")}
         />
-      </main>
+      </AppFrame>
     );
   }
 
   const controlPlaneAccessToken = accessToken ?? buildControlPlaneAccessToken({ scope: "control-plane" });
   const homePath = buildAuthorizedPath("/", controlPlaneAccessToken);
+  const newRunPath = buildAuthorizedPath("/new", controlPlaneAccessToken);
+  const opsPath = buildAuthorizedPath("/ops", controlPlaneAccessToken);
+  const analyticsPath = buildAuthorizedPath("/analytics", controlPlaneAccessToken);
+  const navItems = [
+    { href: homePath, label: "Proof", shortLabel: "PF" },
+    { href: newRunPath, label: "New run", shortLabel: "NR" },
+    { href: opsPath, label: "Ops", shortLabel: "OP", active: true },
+    { href: analyticsPath, label: "Analytics", shortLabel: "AN" }
+  ];
+
   const allRuns = (await listReplayXRuns({ includeArchived: true })).filter((run) => run.origin === "live-run");
   const runs = allRuns.filter((run) => run.archivedAt === null);
   const archivedCount = allRuns.length - runs.length;
@@ -47,7 +58,9 @@ export default async function OpsPage({
     )
   );
   const blockedRuns = runs.filter((run) => run.status === "blocked" || run.status === "failed");
-  const approvals = runs.flatMap((run) => run.approvals.filter((approval) => approval.status === "pending").map((approval) => ({ run, approval })));
+  const approvals = runs.flatMap((run) =>
+    run.approvals.filter((approval) => approval.status === "pending").map((approval) => ({ run, approval }))
+  );
   const degradedIntegrations = runs.flatMap((run) =>
     run.integrations
       .filter((integration) => integration.status !== "healthy")
@@ -55,86 +68,65 @@ export default async function OpsPage({
   );
 
   return (
-    <main className="shell replay-shell">
-      <header className="replay-header">
-        <div>
-          <Link className="ghost-link" href={homePath}>
-            ← Back to home
+    <AppFrame active="ops" homePath={homePath} navItems={navItems} statusDetail="Fleet board">
+      <PageHeader
+        actions={
+          <Link className="button button-primary" href={newRunPath}>
+            Start incident
           </Link>
-          <span className="eyebrow">Ops Command Center</span>
-          <h1>See the incident fleet at a glance</h1>
-          <p className="lead">
-            Watch active work, blocked paths, approvals, and degraded integrations without digging through individual run pages.
-          </p>
-          <p className="ghost-text">
-            Archived runs stay preserved off the live board. Historical analytics still count them. Current archived count: {archivedCount}.
-          </p>
+        }
+        eyebrow="Ops command center"
+        lead={`Active board excludes ${archivedCount} archived run${archivedCount === 1 ? "" : "s"} while historical analytics still preserve them.`}
+        meta={<StatusPill tone={blockedRuns.length > 0 ? "danger" : "success"}>{blockedRuns.length > 0 ? "Attention" : "Clear"}</StatusPill>}
+        title="Watch the incident fleet without opening every run."
+      />
+
+      <section className="ops-stack fade-in">
+        <div className="ops-overview">
+          <MetricCell label="Active runs" value={activeRuns.length} detail="Triaging through PR packaging." tone="accent" />
+          <MetricCell label="Blocked" value={blockedRuns.length} detail="Needs human help or retry." tone={blockedRuns.length > 0 ? "danger" : "success"} />
+          <MetricCell label="Approvals" value={approvals.length} detail="Operator decisions waiting." tone={approvals.length > 0 ? "warning" : "neutral"} />
+          <MetricCell label="Integrations" value={degradedIntegrations.length} detail="Degraded Slack, executor, or memory signals." tone={degradedIntegrations.length > 0 ? "warning" : "success"} />
         </div>
-      </header>
 
-      <section className="ops-shell fade-in">
-        <section className="ops-overview">
-          <article className="card kpi-card">
-            <span className="section-kicker">Active runs</span>
-            <div className="kpi-value">{activeRuns.length}</div>
-            <p>Triaging, diagnosing, patching, validating, or packaging a PR.</p>
-          </article>
-          <article className="card kpi-card">
-            <span className="section-kicker">Blocked runs</span>
-            <div className="kpi-value">{blockedRuns.length}</div>
-            <p>Runs that need help, approval, or a better route to resolution.</p>
-          </article>
-          <article className="card kpi-card">
-            <span className="section-kicker">Approval queue</span>
-            <div className="kpi-value">{approvals.length}</div>
-            <p>Human decisions waiting before the automation can continue.</p>
-          </article>
-          <article className="card kpi-card">
-            <span className="section-kicker">Integration health</span>
-            <div className="kpi-value">{degradedIntegrations.length}</div>
-            <p>Degraded or failing systems across Slack, executor, and memory services.</p>
-          </article>
-        </section>
-
-        <section className="ops-grid-2">
+        <section className="workspace-grid">
           <article className="workspace-surface">
-            <div className="section-header">
-              <span className="section-kicker">Active incidents</span>
-              <h2>Runs in flight</h2>
-            </div>
+            <SectionHeader
+              eyebrow="Active incidents"
+              title="Runs in flight"
+              body="Primary action on this page is opening the run that needs attention."
+            />
             <div className="ops-stack">
               {activeRuns.length > 0 ? (
                 activeRuns.map((run) => (
                   <Link
-                    className="ops-row"
-                    key={run.runId}
+                    className="ops-row ops-row-link"
                     href={buildAuthorizedPath(`/live/${run.runId}`, controlPlaneAccessToken)}
+                    key={run.runId}
                   >
                     <div className="ops-row-head">
                       <div>
-                        <span className="section-kicker">{run.workspaceId}</span>
+                        <span className="eyebrow">{run.workspaceId}</span>
                         <h3>{run.issue.text}</h3>
                       </div>
                       <StatusBadge status={run.status.replaceAll("_", " ")} />
                     </div>
-                    <p>{run.repoTarget} · {run.environmentTarget}</p>
-                    <p className="ops-meta">Current phase · {run.currentPhaseId ?? "queued"}</p>
+                    <p>{run.repoTarget} / {run.environmentTarget}</p>
+                    <p className="ops-meta">Current phase: {run.currentPhaseId ?? "queued"}</p>
                   </Link>
                 ))
               ) : (
-                <article className="workspace-panel empty-state">
-                  <div>
-                    <h3>No active incidents</h3>
-                    <p>ReplayX is currently idle. New incidents appear here as soon as Slack or the workspace API creates a run.</p>
-                  </div>
-                </article>
+                <EmptyState
+                  title="No active incidents"
+                  body="New Slack or API runs appear here as soon as ReplayX creates the workspace."
+                />
               )}
             </div>
           </article>
 
-          <div className="workspace-aside">
+          <aside className="workspace-aside">
             <article className="workspace-rail">
-              <span className="section-kicker">Approvals</span>
+              <span className="eyebrow">Approvals</span>
               <h3>{approvals.length > 0 ? "Pending decisions" : "Queue clear"}</h3>
               <div className="ops-stack">
                 {approvals.length > 0 ? (
@@ -142,10 +134,10 @@ export default async function OpsPage({
                     <article className="ops-row" key={approval.id}>
                       <div className="ops-row-head">
                         <div>
-                          <span className="section-kicker">{approval.kind}</span>
+                          <span className="eyebrow">{approval.kind}</span>
                           <h3>{run.runId}</h3>
                         </div>
-                        <span className="pill pill-warning">{approval.status}</span>
+                        <StatusPill tone="warning">{approval.status}</StatusPill>
                       </div>
                       <p>{approval.summary}</p>
                     </article>
@@ -157,7 +149,7 @@ export default async function OpsPage({
             </article>
 
             <article className="workspace-rail">
-              <span className="section-kicker">Integration health</span>
+              <span className="eyebrow">Integration health</span>
               <h3>{degradedIntegrations.length > 0 ? "Needs attention" : "Healthy"}</h3>
               <div className="ops-stack">
                 {degradedIntegrations.length > 0 ? (
@@ -165,10 +157,10 @@ export default async function OpsPage({
                     <article className="ops-row" key={`${runId}-${integration.integration}`}>
                       <div className="ops-row-head">
                         <div>
-                          <span className="section-kicker">{integration.integration}</span>
+                          <span className="eyebrow">{integration.integration}</span>
                           <h3>{runId}</h3>
                         </div>
-                        <span className="pill pill-danger">{integration.status}</span>
+                        <StatusPill tone="danger">{integration.status}</StatusPill>
                       </div>
                       <p>{integration.summary}</p>
                     </article>
@@ -178,24 +170,21 @@ export default async function OpsPage({
                 )}
               </div>
             </article>
-          </div>
+          </aside>
         </section>
 
         <section className="workspace-surface">
-          <div className="section-header">
-            <span className="section-kicker">Blocked / failed</span>
-            <h2>Needs attention</h2>
-          </div>
+          <SectionHeader eyebrow="Blocked / failed" title="Needs attention" />
           <div className="ops-stack">
             {blockedRuns.length > 0 ? (
               blockedRuns.map((run) => (
                 <article className="ops-row" key={run.runId}>
                   <div className="ops-row-head">
                     <div>
-                      <span className="section-kicker">{run.workspaceId}</span>
+                      <span className="eyebrow">{run.workspaceId}</span>
                       <h3>{run.issue.text}</h3>
                     </div>
-                    <span className="pill pill-danger">{run.status.replaceAll("_", " ")}</span>
+                    <StatusPill tone="danger">{run.status.replaceAll("_", " ")}</StatusPill>
                   </div>
                   <p>{run.currentBlocker ?? run.error ?? "No blocker recorded."}</p>
                   <div className="rail-actions" style={{ marginTop: "0.75rem" }}>
@@ -209,7 +198,7 @@ export default async function OpsPage({
                       className="ghost-link"
                       href={buildAuthorizedPath(`/runs/${run.runId}/actions/archive`, controlPlaneAccessToken)}
                     >
-                      Archive run
+                      Archive
                     </Link>
                   </div>
                 </article>
@@ -220,17 +209,17 @@ export default async function OpsPage({
           </div>
         </section>
       </section>
-    </main>
+    </AppFrame>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
   const tone =
     status.includes("blocked") || status.includes("failed")
-      ? "pill-danger"
+      ? "danger"
       : status.includes("waiting") || status.includes("approval")
-        ? "pill-warning"
-        : "pill-success";
+        ? "warning"
+        : "success";
 
-  return <span className={`pill ${tone}`}>{status}</span>;
+  return <StatusPill tone={tone}>{status}</StatusPill>;
 }

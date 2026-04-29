@@ -2,21 +2,51 @@ function stripMentionPrefix(text = "") {
   return text.replace(/^<@[^>]+>\s*/, "").trim();
 }
 
-const DEFAULT_GOLDEN_INCIDENT_ID = "incident-checkout-race-001";
+const { createHmac } = require("node:crypto");
+
+const ACCESS_TTL_MS = 1000 * 60 * 60 * 12;
 
 function normalizeBaseUrl(url) {
   return typeof url === "string" ? url.trim().replace(/\/+$/, "") : "";
 }
 
-function buildReplayPath(goldenIncidentId) {
-  return `/replay/${encodeURIComponent(goldenIncidentId)}`;
+function buildNewRunPath() {
+  return "/new";
 }
 
-function buildHandoffTarget({ dashboardBaseUrl, goldenIncidentId }) {
-  const replayPath = buildReplayPath(goldenIncidentId);
+function base64UrlEncode(value) {
+  return Buffer.from(value, "utf8").toString("base64url");
+}
+
+function signValue(value, secret) {
+  return createHmac("sha256", secret).update(value).digest("base64url");
+}
+
+function buildControlPlaneAccessToken(internalApiToken) {
+  if (!internalApiToken) {
+    return null;
+  }
+
+  const encodedPayload = base64UrlEncode(JSON.stringify({
+    scope: "control-plane",
+    exp: Date.now() + ACCESS_TTL_MS,
+  }));
+  return `${encodedPayload}.${signValue(encodedPayload, internalApiToken)}`;
+}
+
+function appendAccessToken(path, accessToken) {
+  if (!accessToken) {
+    return path;
+  }
+
+  return `${path}${path.includes("?") ? "&" : "?"}access=${encodeURIComponent(accessToken)}`;
+}
+
+function buildHandoffTarget({ dashboardBaseUrl, internalApiToken }) {
+  const newRunPath = appendAccessToken(buildNewRunPath(), buildControlPlaneAccessToken(internalApiToken));
   const normalizedBaseUrl = normalizeBaseUrl(dashboardBaseUrl);
 
-  return normalizedBaseUrl ? `${normalizedBaseUrl}${replayPath}` : replayPath;
+  return normalizedBaseUrl ? `${normalizedBaseUrl}${newRunPath}` : newRunPath;
 }
 
 function buildLiveHandoffTarget({ dashboardBaseUrl, livePath }) {
@@ -37,11 +67,13 @@ function buildWorkspaceTarget({ dashboardBaseUrl, workspaceId, runId }) {
   return normalizedBaseUrl ? `${normalizedBaseUrl}${workspacePath}` : workspacePath;
 }
 
-function buildAppMentionReply({ cleanedText, goldenIncidentId, handoffTarget, runId }) {
+function buildAppMentionReply({ cleanedText, handoffTarget, runId, degradedReason }) {
   const bugSummary = cleanedText || "No bug details were included.";
   const runLine = runId
     ? `ReplayX started live orchestration run \`${runId}\`.`
-    : `Next: routing it into the ReplayX incident flow for \`${goldenIncidentId}\`.`;
+    : degradedReason
+      ? `Live run not started: ${degradedReason}`
+      : "Live run not started: ReplayX orchestration API is not configured for this Slack service.";
 
   return [
     `ReplayX logged this bug report: ${bugSummary}`,
@@ -50,7 +82,15 @@ function buildAppMentionReply({ cleanedText, goldenIncidentId, handoffTarget, ru
   ].join("\n");
 }
 
-function buildActionBlocks({ runId, workspaceId, dashboardBaseUrl, approvalPending, actionPaths, workspaceTargetOverride }) {
+function buildActionBlocks({
+  runId,
+  workspaceId,
+  dashboardBaseUrl,
+  approvalPending,
+  canRetry = false,
+  actionPaths,
+  workspaceTargetOverride,
+}) {
   if (!runId) {
     return undefined;
   }
@@ -84,7 +124,7 @@ function buildActionBlocks({ runId, workspaceId, dashboardBaseUrl, approvalPendi
         style: "danger",
       }
     );
-  } else {
+  } else if (canRetry) {
     buttons.push({
       type: "button",
       text: { type: "plain_text", text: "Retry Run" },
@@ -104,7 +144,7 @@ function createSlackService({
   slackClient,
   bugsChannelId,
   dashboardBaseUrl,
-  goldenIncidentId = DEFAULT_GOLDEN_INCIDENT_ID,
+  internalApiToken,
   replayXClient,
   logger,
 }) {
@@ -122,12 +162,15 @@ function createSlackService({
       const cleanedText = stripMentionPrefix(event.text);
       let runId;
       let workspaceId;
+      let incidentId;
       let approvalPending = false;
+      let canRetry = false;
       let actionPaths;
+      let degradedReason;
       const threadTs = event.thread_ts || event.ts;
       let handoffTarget = buildHandoffTarget({
         dashboardBaseUrl,
-        goldenIncidentId,
+        internalApiToken,
       });
 
       if (replayXClient?.isConfigured?.()) {
@@ -140,8 +183,14 @@ function createSlackService({
           });
           runId = runResult.runId;
           workspaceId = runResult.run?.workspaceId;
+          incidentId = runResult.run?.incidentId;
           actionPaths = runResult.actionPaths;
           approvalPending = Boolean(runResult.run?.approvals?.some((approval) => approval.status === "pending"));
+          canRetry = Boolean(
+            runResult.run &&
+              ["resolved_to_pr", "blocked", "failed", "cancelled"].includes(runResult.run.status) &&
+              !runResult.run.archivedAt
+          );
           handoffTarget = buildLiveHandoffTarget({
             dashboardBaseUrl,
             livePath:
@@ -162,20 +211,22 @@ function createSlackService({
             message: error.message,
             details: error.details,
           });
+          degradedReason = "ReplayX orchestration failed before a live run could be created.";
         }
       }
 
       const replyText = buildAppMentionReply({
         cleanedText,
-        goldenIncidentId,
         handoffTarget,
         runId,
+        degradedReason,
       });
       const blocks = buildActionBlocks({
         runId,
         workspaceId,
         dashboardBaseUrl,
         approvalPending,
+        canRetry,
         actionPaths,
         workspaceTargetOverride: handoffTarget,
       });
@@ -183,10 +234,10 @@ function createSlackService({
       logger.info("slack.app_mention.reply.attempt", {
         channel: event.channel,
         threadTs,
-        cleanedText,
-        goldenIncidentId,
+        cleanedTextLength: cleanedText.length,
         runId,
         handoffTarget,
+        degradedReason,
       });
 
       const result = await slackClient.postMessage({
@@ -204,9 +255,10 @@ function createSlackService({
 
       return {
         ...result,
-        incidentId: goldenIncidentId,
+        incidentId,
         runId,
         handoffTarget,
+        degradedReason,
       };
     },
 
@@ -230,11 +282,11 @@ function createSlackService({
 }
 
 module.exports = {
-  DEFAULT_GOLDEN_INCIDENT_ID,
   buildAppMentionReply,
   buildLiveHandoffTarget,
   buildWorkspaceTarget,
   buildHandoffTarget,
+  buildControlPlaneAccessToken,
+  buildNewRunPath,
   createSlackService,
-  buildReplayPath,
 };

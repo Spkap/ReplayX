@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import type { ControlPlaneErrorPayload } from "../lib/control-plane-errors";
+import { StatusPill } from "./replayx-ui";
 
 export function ControlPlaneErrorPanel({
   kicker,
@@ -17,8 +18,13 @@ export function ControlPlaneErrorPanel({
 }) {
   return (
     <article className="workspace-panel">
-      <span className="section-kicker">{kicker}</span>
-      <h2>{title}</h2>
+      <div className="evidence-head">
+        <div>
+          <span className="eyebrow">{kicker}</span>
+          <h2>{title}</h2>
+        </div>
+        <StatusPill tone="danger">Blocked</StatusPill>
+      </div>
       <p>{problem.error}</p>
       <div className="ops-stack" style={{ marginTop: "1rem" }}>
         <div className="rail-note">

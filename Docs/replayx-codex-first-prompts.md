@@ -25,9 +25,9 @@ These prompts intentionally follow current OpenAI guidance for Codex and prompt 
 - require explicit schemas and stop conditions
 - do not over-prompt
 
-They are also tuned for hackathon constraints:
+They are also tuned for launch constraints:
 
-- easy to explain to judges
+- easy to explain to operators and technical buyers
 - easy to run repeatedly on seeded incidents
 - easy to score against deterministic outputs
 
@@ -80,13 +80,13 @@ Bad role framing:
 
 ## Hackathon Prompt Rules
 
-Use these rules to keep ReplayX competitive during the hackathon:
+Use these rules to keep ReplayX sharp during the launch phase:
 
 1. Prefer prompts that reliably produce machine-checkable output over prompts that sound impressive.
 2. Keep the stable prefix identical across runs whenever possible so a future hosted API path can benefit from prompt caching.
 3. Evaluate prompt changes against a small fixed incident set before promoting them.
 4. Do not increase worker count unless it improves win rate on that fixed set.
-5. Keep each worker narrowly specialized enough that judges can understand why it exists.
+5. Keep each worker narrowly specialized enough that operators can understand why it exists.
 
 ## Context Engineering Rules
 
@@ -481,7 +481,7 @@ Determine whether this incident is best explained by your specialty.
 
 ## Recommended Diagnosis Workers
 
-Use these worker variants for the current hackathon build. The code implementation currently fans out across exactly these six workers.
+Use these worker variants for the current launch build. The code implementation currently fans out across exactly these six workers.
 
 ### 03A: Concurrency and Race Worker
 
@@ -757,7 +757,7 @@ Role:
 You are the ReplayX demo script writer.
 
 Mission:
-Write the exact 2-minute demo script for a cold viewer who has never seen ReplayX before.
+Write the exact 2-minute product walkthrough script for a cold viewer who has never seen ReplayX before.
 
 Rules:
 - Optimize first for comprehension, then for technical depth.

@@ -1,260 +1,150 @@
 # ReplayX
 
-ReplayX is a Codex-first incident response system.
+> **Incident response, replayed.**
 
-It turns a production-style bug report into a ranked diagnosis, a reviewed fix strategy, a regression verification record, a postmortem, and a reusable incident skill — all in one live, auditable run.
+Drop a bug report into Slack. Walk away with a confirmed repro, a ranked diagnosis, a validated fix strategy, and a reusable skill — all in one deterministic, fully auditable run.
 
-**The core idea:** incident response should feel less like panic, and more like playback.
-
----
-
-## What ReplayX Is
-
-ReplayX is not a log-summarizing chatbot. It is a code-aware incident workflow where Codex-powered specialists work in bounded phases:
-
-- normalize and intake the incident bundle
-- confirm the failure reproduces in the target environment
-- investigate with a fleet of specialist workers, each owning one failure domain
-- challenge the strongest hypotheses adversarially
-- rank fix strategies by score and blast radius
-- produce a reviewed verification plan
-- emit a postmortem and a reusable incident skill
-
-The dashboard is the main product surface. Slack is the intake trigger. The `demo_app/` makes the failure concrete and demoable.
+No war rooms. No guesswork. No opaque agent traces.
 
 ---
 
-## Product Modes
+## The Problem
 
-### Featured proof
+Production incidents are a coordination disaster. Engineers context-switch between Slack threads, runbooks, dashboards, and gut instinct. By the time a fix lands, the postmortem is shallow and the same pattern breaks again three sprints later.
 
-`/` is the public, proof-first entrance. It highlights a validated replay or the latest validated live run when an operator session is already present.
-
-### Live run
-
-1. A user reports a bug in Slack or creates a run manually.
-2. ReplayX starts a live incident run.
-3. The dashboard updates in real time as the orchestrator advances through all 8 phases.
-4. The run ends with a postmortem and a reusable skill artifact.
-
-### Replay
-
-Precomputed artifacts drive a stable fallback at `/replay/incident-checkout-race-001`. Use this as a safety net or when you need a no-risk demo path.
-
-For most demos, start on `/`, open the featured proof, then move into live or operator surfaces only when needed.
+**ReplayX changes the loop.** Every incident runs through a fixed sequence of specialists. Every hypothesis is challenged before it advances. Every resolved incident leaves a skill artifact behind — so the next engineer sees a known pattern, not a blank slate.
 
 ---
 
-## Why Codex
+## What You Get
 
-The hard parts of incident response are fundamentally coding-agent tasks:
+After one complete run:
 
-- reading real repository context
-- understanding failure evidence in code
-- proposing targeted fixes instead of vague advice
-- producing concrete verification steps
-- writing reusable engineering knowledge
+- **Confirmed repro** — real commands, real exit codes, real failure surface — before any theory is entertained
+- **Six parallel diagnosis workers** — each pinned to one failure domain, each producing a structured analysis with confidence score and a falsification note
+- **Adversarial validation** — weak or underdetermined theories are rejected before they reach the fix stage
+- **Three ranked fix strategies** — scored by blast radius, rollback confidence, and verification quality
+- **Regression-proof verification plan** — not "fix the bug" — prove it's fixed and prove nothing else broke
+- **A reusable incident skill** — written back to the skills catalog so future runs recognize the pattern instantly
 
-ReplayX is built around `@openai/codex-sdk` because those tasks require code-aware reasoning, not just text generation.
-
----
-
-## Architecture
-
-ReplayX follows a deterministic 8-phase model:
-
-| # | Phase | Role |
-|---|---|---|
-| 1 | Incident Intake | Normalize the bundle into a strict contract |
-| 2 | Skill Match | Check incident memory for a known pattern |
-| 3 | Repro | Confirm the failure is real and reproducible |
-| 4 | Diagnosis Arena | Fan out to 6 specialist Codex workers |
-| 5 | Challenger Validation | Reject weak or broad diagnoses adversarially |
-| 6 | Fix Arena | Generate and rank three bounded fix strategies |
-| 7 | Review & Regression | Produce a verification plan — `planned` or `blocked` |
-| 8 | Postmortem & Skill | Write reusable knowledge; compile dashboard artifacts |
-
-This structure gives the system strong failure isolation, clear per-phase artifacts, and a workflow that judges can follow in under two minutes.
-
-Full details: [PIPELINE.md](PIPELINE.md)
+Everything is on disk, in plain JSON, fully inspectable. Nothing is hidden in an agent trace.
 
 ---
 
-## Outputs
+## How It Works
 
-Every incident run produces a complete, inspectable artifact set:
+ReplayX runs a **deterministic 8-phase workflow**. Every phase boundary is a strict JSON contract. No phase accepts vague output from the one before it.
 
-- normalized incident bundle
-- per-phase JSON outputs and logs
-- ranked diagnosis results
-- challenger verdict
-- fix strategy ranking and winner
-- regression verification plan
-- human-readable postmortem
-- reusable `skill.yaml` artifact
-
-Every artifact is written to disk and exposed through the dashboard. Nothing is hidden in an opaque agent trace.
-
----
-
-## Run the Demo
-
-### 1. Install dependencies
-
-```bash
-pnpm install
-pnpm --dir dashboard install
-npm --prefix slack install
+```
+Bug report in Slack (or POST /api/replayx/runs)
+    │
+    ├─① Incident Intake        validate and normalize the raw report
+    ├─② Skill Match            score against the growing skills catalog
+    ├─③ Repro                  execute failing + healthy commands; confirm the bug is real
+    ├─④ Diagnosis Arena        six Codex workers fan out in parallel
+    ├─⑤ Challenger Validation  adversarially reject weak hypotheses
+    ├─⑥ Fix Arena              generate minimal · safe · durable strategies; rank by score
+    ├─⑦ Review & Regression    write the verification proof plan
+    └─⑧ Postmortem & Skill     compile the postmortem; write a reusable skill back to catalog
 ```
 
-### 2. Start the local proof-first stack
+The live dashboard streams each phase as it completes. The replay surface makes every artifact shareable and inspectable after the run.
+
+→ Full phase spec, flow diagram, and artifact map: **[PIPELINE.md](PIPELINE.md)**
+
+---
+
+## Quickstart
+
+**Requirements:** Node.js ≥ 24.0 · pnpm ≥ 10 · Codex/OpenAI auth for live Codex workers
 
 ```bash
+# Install
+pnpm install
+pnpm --dir dashboard install
+
+# Start the stack (demo app + dashboard)
 pnpm dev:all
 ```
 
-This launches:
-
-- demo app at `http://127.0.0.1:4311`
-- dashboard at `http://localhost:3001`
-
-To include Slack intake in the same loop:
-
-```bash
-pnpm dev:all:slack
-```
-
-### 3. Start the broken app manually
-
-If you prefer separate terminals:
-
-```bash
-pnpm demo-app
-```
-
-Demo app: `http://127.0.0.1:4311/`
-
-### 4. Start the dashboard manually
-
-```bash
-pnpm dashboard:dev
-```
-
-Dashboard: `http://localhost:3001/`
-
-### 5. Start Slack intake
-
-```bash
-npm --prefix slack start
-```
-
-Slack service: `http://localhost:3000/`
-
-### 6. Trigger a live run
-
-In your Slack `#bugs` channel:
-
+**Trigger a run from Slack:**
 ```
 @ReplayX checkout is overselling stock during concurrent orders
 ```
 
-The bot returns a live dashboard URL. Click it to watch the orchestrator advance in real time.
-
-### Optional — manual no-Slack live run
-
+**Or trigger directly:**
 ```bash
 curl -s -X POST http://localhost:3001/api/replayx/runs \
   -H 'content-type: application/json' \
   --data '{"source":"manual","text":"checkout is overselling stock during concurrent orders"}'
 ```
 
-Open the returned `livePath` for the operator workspace. `/` remains the proof-first public entrance; `/ops` and `/analytics` require signed operator links when auth is enabled.
+If `REPLAYX_INTERNAL_API_TOKEN` is set, add `-H "authorization: Bearer ${REPLAYX_INTERNAL_API_TOKEN}"`.
 
-### Optional — precompute the replay fallback
+Open the `incidentWorkspacePath` or `livePath` from the response. Plain incident text creates a realtime investigation run: ReplayX captures validation, repo search, recent changes, and an evidence packet before it claims any fix.
 
+**Run an explicit fixture/eval replay:**
 ```bash
 pnpm golden-run incidents/checkout-race-condition.json
+# → http://localhost:3001/replay/incident-checkout-race-001
 ```
 
-Then open: `http://localhost:3001/replay/incident-checkout-race-001`
+To exercise the full deterministic fixture path through the live API, supply a fixture id explicitly:
 
-For the full operational flow, see [Docs/replayx-demo-runbook.md](Docs/replayx-demo-runbook.md).
+```bash
+curl -s -X POST http://localhost:3001/api/replayx/runs \
+  -H 'content-type: application/json' \
+  --data '{"source":"manual","incidentId":"incident-checkout-race-001","text":"checkout is overselling stock during concurrent orders"}'
+```
 
 ---
 
-## Project Structure
+## Included Incidents
 
-```text
-ReplayX/
-├── AGENTS.md            # Rules for Codex / OpenAI tooling
-├── CLAUDE.md            # Rules for Claude / Claude Code
-├── DESIGN.md            # Visual design system
-├── PIPELINE.md          # Phase model, flow diagram, specialist table, artifact map
-├── PROMPTS.md           # Stable prompt catalog
-├── README.md            # This file
-├── orchestrator/
-│   ├── main.ts          # Phase runner and CLI entry point
-│   ├── normalize-incident.ts
-│   ├── types.ts         # Canonical type system for all phases
-│   ├── phases/          # One file per phase (8 total)
-│   └── prompts/         # Phase prompt templates
-├── dashboard/           # Next.js live run + replay UI
-├── demo_app/            # Intentionally broken target application
-├── incidents/           # Normalized incident fixture bundles
-├── skills/              # Reusable skill artifacts
-├── slack/               # Slack intake and handoff service
-├── tests/               # Orchestrator tests
-├── artifacts/           # Phase outputs written at runtime
-└── Docs/                # Architecture, demo operations, and authoring guides
-```
+Three fully validated incident classes ship in the launch registry:
+
+| Incident | What it tests |
+|---|---|
+| **Checkout Race Condition** — oversell during concurrent orders | Non-atomic read-write, stale reservation token |
+| **Auth Token Session Failure** — session expires mid-flow | Broken token refresh path, stale session state |
+| **Null Data Shape Failure** — optional field arrives `null` | Missing null guard, downstream schema violation |
+
+→ Adding a new incident class: **[Docs/replayx-incident-authoring-guide.md](Docs/replayx-incident-authoring-guide.md)**
+
+---
+
+## Stack
+
+| Layer | Technology |
+|---|---|
+| Orchestration | Node.js ≥ 24.0 + TypeScript + `@openai/codex-sdk` v0.121.0 |
+| Dashboard | Next.js — live run streaming + replay visualization |
+| Intake | Slack bot + REST API (`POST /api/replayx/runs`) |
+| Control plane | SQLite-backed store at `.replayx-control-plane/` |
+| Artifacts | Plain JSON on disk under `artifacts/<incident-id>/` |
+
+ReplayX uses `@openai/codex-sdk` because the hard parts of incident response — reading a real codebase, running commands, proposing a targeted fix — are software engineering tasks that need code-aware reasoning. Fresh live incidents do not silently fall back to seeded answers; deterministic fixture/eval runs remain available when explicitly selected.
+
+→ Architecture rationale: **[Docs/replayx-codex-first-architecture.md](Docs/replayx-codex-first-architecture.md)**
+→ Full stack reference: **[Docs/replayx-architecture.md](Docs/replayx-architecture.md)**
 
 ---
 
 ## Documentation
 
-| File | Purpose |
+| Doc | What's inside |
 |---|---|
-| [README.md](README.md) | Product overview and quickstart |
-| [AGENTS.md](AGENTS.md) | Rules for Codex / OpenAI tooling |
-| [CLAUDE.md](CLAUDE.md) | Rules for Claude / Claude Code |
-| [PIPELINE.md](PIPELINE.md) | Phase model, flow, specialist table, and artifact map |
-| [PROMPTS.md](PROMPTS.md) | Stable prompt catalog and ownership rules |
-| [DESIGN.md](DESIGN.md) | Visual design system — read before any UI work |
-| [Docs/replayx-architecture.md](Docs/replayx-architecture.md) | Technical architecture: stack, runtime split, data flow |
-| [Docs/replayx-demo-runbook.md](Docs/replayx-demo-runbook.md) | Live demo setup, preflight, and operational flow |
-| [Docs/replayx-incident-authoring-guide.md](Docs/replayx-incident-authoring-guide.md) | How to add a new incident class end to end |
-| [Docs/replayx-architecture-diagram.md](Docs/replayx-architecture-diagram.md) | Judge-friendly system diagrams |
-| [Docs/README.md](Docs/README.md) | Full Docs directory map and reading order |
+| [PIPELINE.md](PIPELINE.md) | Phase model, flow diagram, specialist table, artifact map, implementation status |
+| [Docs/replayx-architecture.md](Docs/replayx-architecture.md) | Stack, runtime split, env vars, data flow, key files |
+| [Docs/replayx-codex-first-architecture.md](Docs/replayx-codex-first-architecture.md) | Why Codex-first; why not Agents SDK; fallback guarantee |
+| [Docs/replayx-demo-runbook.md](Docs/replayx-demo-runbook.md) | Live demo setup, preflight checklist, what to say |
+| [Docs/replayx-incident-authoring-guide.md](Docs/replayx-incident-authoring-guide.md) | Add a new incident class end to end |
+| [dashboard/README.md](dashboard/README.md) | Dashboard routes, local dev, signed links, env vars |
+| [slack/README.md](slack/README.md) | Slack service setup, env vars, deployment |
+| [incidents/README.md](incidents/README.md) | Incident fixture format, validation rules, schema reference |
 
 ---
 
-## Known Scope
+## License
 
-- The golden path is optimized for the three bundled incident classes. Adding a new class requires extending the diagnosis, challenger, and fix phase files — see the [incident authoring guide](Docs/replayx-incident-authoring-guide.md).
-- Live runs use WebSockets for dashboard updates, with SSE as the fallback transport.
-- Fix verification plans are produced but the patch is not auto-applied. The review phase outputs a verification command, not an executed result.
-- ReplayX writes a PR preview bundle by default. Set `REPLAYX_GITHUB_PR_MODE=live` only in environments that are configured for real GitHub pushes and PR creation.
-
-## Troubleshooting
-
-- Signed operator links: when `REPLAYX_INTERNAL_API_TOKEN` is set, `/ops`, `/analytics`, live incident workspaces, and action pages require signed links. `/` stays public. See `/help/troubleshooting#signed-links`.
-- Run not found: this usually means the link points at a different `.replayx-control-plane` store than the dashboard is reading. See `/help/troubleshooting#run-not-found`.
-- Archived runs: archive removes a terminal run from the live fleet, but keeps it readable and preserved in historical analytics. Archived runs are intentionally read-only. See `/help/troubleshooting#archived-runs`.
-- Local stack: use `pnpm dev:all` for the shortest local path, and `pnpm dev:all:slack` when you also need Slack intake. See `/help/troubleshooting#local-stack`.
-
-## Migration Notes
-
-- Homepage semantics changed from implicit live-run promotion to proof-first entry. `/` is now the public entrance, and signed operator surfaces are secondary.
-- Archived runs no longer disappear from historical analytics. They leave the live board, but they still count in truth-bearing metrics.
-- Run-scoped and workspace-scoped links no longer silently escalate into root operator scope.
-- The control-plane store remains `.replayx-control-plane/`, and operator errors now point at `/help/troubleshooting` for the concrete fix path.
-
----
-
-## References
-
-- Codex SDK: https://developers.openai.com/codex/sdk
-- Codex CLI: https://developers.openai.com/codex/cli
-- AGENTS.md guide: https://developers.openai.com/codex/guides/agents-md
-- Codex best practices: https://developers.openai.com/codex/learn/best-practices
-- Prompt engineering guide: https://developers.openai.com/api/docs/guides/prompt-engineering
+MIT

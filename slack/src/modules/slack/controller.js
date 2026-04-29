@@ -1,8 +1,29 @@
 const { sendError } = require("./http-errors");
 
+const EVENT_DEDUPE_TTL_MS = 1000 * 60 * 15;
+
+function buildEventKey(body) {
+  if (!body?.event_id) {
+    return null;
+  }
+
+  return `${body.team_id || "unknown-team"}:${body.event_id}`;
+}
+
+function pruneProcessedEvents(processedEvents, now = Date.now()) {
+  for (const [eventKey, processedAt] of processedEvents.entries()) {
+    if (now - processedAt > EVENT_DEDUPE_TTL_MS) {
+      processedEvents.delete(eventKey);
+    }
+  }
+}
+
 function createSlackController({ slackService, bugsChannelId, logger }) {
+  const processedEvents = new Map();
+
   return {
     async handleEvents(req, res) {
+      pruneProcessedEvents(processedEvents);
       logger.info("slack.events.received", {
         requestType: req.body?.type,
         eventType: req.body?.event?.type,
@@ -39,8 +60,22 @@ function createSlackController({ slackService, bugsChannelId, logger }) {
         return res.status(200).json({ ok: true, ignored: true });
       }
 
+      const eventKey = buildEventKey(req.body);
+
+      if (eventKey && processedEvents.has(eventKey)) {
+        logger.info("slack.events.completed", {
+          eventType: "app_mention",
+          outcome: "ignored",
+          reason: "duplicate_event",
+        });
+        return res.status(200).json({ ok: true, ignored: true, reason: "duplicate_event" });
+      }
+
       try {
         const result = await slackService.handleAppMention(req.body.event);
+        if (eventKey) {
+          processedEvents.set(eventKey, Date.now());
+        }
         logger.info("slack.events.completed", {
           eventType: "app_mention",
           outcome: result?.ignored ? "ignored" : "handled",
@@ -69,7 +104,8 @@ function createSlackController({ slackService, bugsChannelId, logger }) {
         logger.info("slack.post_message.attempt", {
           channel: targetChannel,
           threadTs,
-          text,
+          textLength: text.length,
+          hasBlocks: Array.isArray(blocks),
         });
         const result = await slackService.postMessage({
           channel: targetChannel,

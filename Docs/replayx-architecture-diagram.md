@@ -1,6 +1,6 @@
 # ReplayX Architecture Diagram
 
-This is the judge-friendly architecture view of ReplayX.
+This is the operator-friendly architecture view of ReplayX.
 
 It is intentionally optimized for fast understanding:
 
@@ -96,7 +96,7 @@ flowchart TD
 - `slack/` is the intake trigger, not the main product.
 - `orchestrator/` is the Codex-first reasoning pipeline.
 - `artifacts/` makes every run inspectable and replayable.
-- `dashboard/` is the main judge-facing surface.
+- `dashboard/` is the main operator-facing surface.
 - `skills/` is how ReplayX turns one solved incident into future leverage.
 
 ## One-Sentence Summary

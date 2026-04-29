@@ -4,7 +4,7 @@
 
 **Goal:** Make Slack the entry point for a ReplayX run, then have the dashboard API run the orchestrator and expose live status updates.
 
-**Architecture:** Slack remains deployed on Render and calls a dashboard/orchestrator API using a shared bearer token. The dashboard server stores run status in repo-local `.replayx-runs/`, starts the existing orchestrator phases in-process, and the UI polls a live route until the run completes. This avoids a database and keeps the hackathon flow clear.
+**Architecture:** Slack remains deployed on Render and calls a dashboard/orchestrator API using a shared bearer token. The dashboard server stores run status in repo-local `.replayx-runs/`, starts the existing orchestrator phases in-process, and the UI polls a live route until the run completes. This avoids a database and keeps the live-operations flow clear.
 
 **Tech Stack:** Express 5 Slack service, Next.js App Router route handlers, Node file storage, existing TypeScript ReplayX orchestrator phases.
 
@@ -55,7 +55,7 @@
 
 - [ ] Write failing Slack test proving an app mention creates a ReplayX run and replies with `/live/:runId`.
 - [ ] Implement a ReplayX API client using `fetch`.
-- [ ] Fall back to old golden replay link if orchestrator API is not configured or fails.
+- [ ] Do not fall back to a golden replay when live run creation fails; link to `/new` and label the failure honestly.
 - [ ] Verify with `npm test --prefix slack`.
 
 ### Task 5: Final Verification

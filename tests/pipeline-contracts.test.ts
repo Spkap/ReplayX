@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   runIncidentIntakePhase
 } from "../orchestrator/phases/incident-intake.js";
+import { DEFAULT_GOLDEN_INCIDENT_PATH, resolveIncidentPathForPhase } from "../orchestrator/main.js";
 import { runReviewAndRegressionPhase } from "../orchestrator/phases/review-and-regression.js";
 import { runSkillMatchPhase } from "../orchestrator/phases/skill-match.js";
 import type {
@@ -104,6 +105,15 @@ test("incident intake records the normalized artifact path", () => {
   assert.equal(result.phase, "incident-intake");
   assert.equal(result.verification_status, "normalized");
   assert.equal(result.normalized_path, "/repo/artifacts/incident-null-shape-003/normalized_incident.json");
+});
+
+test("golden-run defaults to the checkout incident when no path is provided", () => {
+  assert.equal(resolveIncidentPathForPhase("golden-run", null), DEFAULT_GOLDEN_INCIDENT_PATH);
+  assert.equal(
+    resolveIncidentPathForPhase("golden-run", "incidents/auth-token-session-failure.json"),
+    "incidents/auth-token-session-failure.json"
+  );
+  assert.equal(resolveIncidentPathForPhase("repro", null), null);
 });
 
 test("skill match finds a canonical skill when service and incident class align", async () => {

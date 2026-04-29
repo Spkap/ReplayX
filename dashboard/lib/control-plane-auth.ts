@@ -33,6 +33,8 @@ const getSharedSecret = (): string | null => {
   return token ? token : null;
 };
 
+const productionControlPlane = (): boolean => process.env.NODE_ENV === "production";
+
 const signValue = (value: string, secret: string): string =>
   createHmac("sha256", secret).update(value).digest("base64url");
 
@@ -107,7 +109,7 @@ const scopesMatch = (payload: AccessPayload, expected: ControlPlaneScope): boole
   return payload.scope === "workspace" && payload.workspaceId === expected.workspaceId;
 };
 
-export const controlPlaneAuthRequired = (): boolean => getSharedSecret() !== null;
+export const controlPlaneAuthRequired = (): boolean => getSharedSecret() !== null || productionControlPlane();
 
 export const buildControlPlaneAccessToken = (scope: ControlPlaneScope): string | null => {
   const secret = getSharedSecret();
@@ -130,7 +132,7 @@ export const isControlPlaneAccessTokenValid = (
   expected: ControlPlaneScope
 ): boolean => {
   if (!getSharedSecret()) {
-    return true;
+    return !controlPlaneAuthRequired();
   }
 
   const payload = getValidatedPayload(token);
@@ -146,7 +148,7 @@ export const isAuthorizedRequest = (request: Request, expected: ControlPlaneScop
   const secret = getSharedSecret();
 
   if (!secret) {
-    return true;
+    return !controlPlaneAuthRequired();
   }
 
   if (request.headers.get("authorization") === `Bearer ${secret}`) {
@@ -161,7 +163,9 @@ export const getAccessQueryParam = (accessToken: string | null): string =>
   accessToken ? `?${ACCESS_QUERY_PARAM}=${encodeURIComponent(accessToken)}` : "";
 
 export const buildAuthorizedPath = (pathname: string, accessToken: string | null): string =>
-  accessToken ? `${pathname}${getAccessQueryParam(accessToken)}` : pathname;
+  accessToken
+    ? `${pathname}${pathname.includes("?") ? "&" : "?"}${ACCESS_QUERY_PARAM}=${encodeURIComponent(accessToken)}`
+    : pathname;
 
 export const getControlPlaneAccessPayload = (
   token: string | null | undefined

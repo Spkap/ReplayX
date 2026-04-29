@@ -9,6 +9,7 @@ import {
   unauthorizedControlPlaneError
 } from "../../../../../lib/control-plane-errors";
 import { ControlPlaneErrorPanel } from "../../../../../components/control-plane-error-panel";
+import { AppFrame, EmptyState } from "../../../../../components/replayx-ui";
 import { ActionPageClient } from "./action-page-client";
 
 const allowedActions = new Set(["approve", "retry", "cancel", "archive"]);
@@ -26,12 +27,9 @@ export default async function RunActionPage({
 
   if (!allowedActions.has(action)) {
     return (
-      <main className="shell replay-shell">
-        <article className="workspace-panel">
-          <span className="section-kicker">Invalid action</span>
-          <h2>ReplayX cannot perform that action</h2>
-        </article>
-      </main>
+      <AppFrame active="action" statusDetail="Invalid action">
+        <EmptyState title="ReplayX cannot perform that action" body="Use one of the approved workspace actions." />
+      </AppFrame>
     );
   }
 
@@ -40,13 +38,13 @@ export default async function RunActionPage({
     !isControlPlaneAccessTokenValid(accessToken, { scope: "run", runId })
   ) {
     return (
-      <main className="shell replay-shell">
+      <AppFrame active="action" statusDetail="Signed link required">
         <ControlPlaneErrorPanel
           kicker="Unauthorized"
           title="This ReplayX action requires a signed operator link"
           problem={unauthorizedControlPlaneError("This ReplayX action")}
         />
-      </main>
+      </AppFrame>
     );
   }
 
@@ -56,13 +54,13 @@ export default async function RunActionPage({
 
   if (!run) {
     return (
-      <main className="shell replay-shell">
+      <AppFrame active="action" statusDetail="Missing run">
         <ControlPlaneErrorPanel
           kicker="Missing run"
           title="ReplayX could not find that run"
           problem={runNotFoundControlPlaneError(runId)}
         />
-      </main>
+      </AppFrame>
     );
   }
 

@@ -7,9 +7,17 @@ import {
   loadReplayIncidentBundle,
   type ReplayWorkerCard
 } from "../../../lib/replay-data";
+import {
+  AppFrame,
+  CommandBlock,
+  MetricCell,
+  PageHeader,
+  SectionHeader,
+  StatusPill
+} from "../../../components/replayx-ui";
 
 function StatusBadge({ tone, children }: { tone: "danger" | "neutral" | "success" | "warning"; children: string }) {
-  return <span className={`pill pill-${tone}`}>{children}</span>;
+  return <StatusPill tone={tone}>{children}</StatusPill>;
 }
 
 function WorkerCard({ worker }: { worker: ReplayWorkerCard }) {
@@ -17,26 +25,26 @@ function WorkerCard({ worker }: { worker: ReplayWorkerCard }) {
     worker.status === "completed" ? "success" : worker.status === "weak_signal" ? "warning" : "neutral";
 
   return (
-    <article className={`card worker-card worker-card-${tone}`} style={{ position: 'relative' }}>
+    <article className="workspace-panel worker-card">
       <div className="worker-topline">
         <div>
           <p className="worker-label">{worker.label}</p>
-          <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-display)' }}>{worker.shortTitle}</h3>
+          <h3 className="panel-title">{worker.shortTitle}</h3>
         </div>
         <StatusBadge tone={tone}>{worker.status.replace("_", " ")}</StatusBadge>
       </div>
-      <p className="worker-diagnosis" style={{ fontSize: '0.9375rem', color: 'var(--text-muted)' }}>{worker.diagnosis}</p>
-      <div className="worker-meta" style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+      <p className="worker-diagnosis">{worker.diagnosis}</p>
+      <div className="worker-meta">
         <div>
           <dt>Confidence</dt>
-          <dd style={{ color: tone === 'success' ? 'var(--success)' : 'var(--text)' }}>{formatPercent(worker.confidence)}</dd>
+          <dd>{formatPercent(worker.confidence)}</dd>
         </div>
         <div>
           <dt>Mode</dt>
           <dd>{worker.mode}</dd>
         </div>
       </div>
-      <ul className="bullet-list" style={{ marginTop: '1rem' }}>
+      <ul className="bullet-list">
         {worker.observations.slice(0, 3).map((observation) => (
           <li key={observation}>{observation}</li>
         ))}
@@ -57,11 +65,11 @@ function TimelineStep({
   return (
     <li className={`timeline-step timeline-${status}`}>
       <span className="timeline-dot" />
-      <div style={{ flex: 1 }}>
-        <p className="timeline-title" style={{ color: status === 'now' ? 'var(--accent)' : 'var(--text)' }}>{title}</p>
+      <div>
+        <p className="timeline-title">{title}</p>
         <p className="timeline-detail">{detail}</p>
       </div>
-      {status === 'now' && <span className="pill pill-warning" style={{ alignSelf: 'flex-start', fontSize: '0.65rem' }}>ACTIVE</span>}
+      {status === "now" ? <StatusPill tone="warning">Active</StatusPill> : null}
     </li>
   );
 }
@@ -85,73 +93,56 @@ export default async function IncidentReplayPage({
 
   const beforeAfter = bundle.beforeAfter;
   const winner = bundle.winningDiagnosis;
+  const navItems = [
+    { href: "/", label: "Proof", shortLabel: "PF" },
+    { href: "/new", label: "New run", shortLabel: "NR" },
+    { href: "/ops", label: "Ops", shortLabel: "OP" },
+    { href: "/analytics", label: "Analytics", shortLabel: "AN" }
+  ];
 
   return (
-    <main className="shell replay-shell">
-      <header className="site-header site-header-compact">
-        <Link className="brand" href="/">
-          <span className="brand-mark">RX</span>
-          <div className="brand-copy">
-            <strong>ReplayX</strong>
-            <span>Incident Replay</span>
+    <AppFrame active="replay" navItems={navItems} statusDetail="Fixture replay">
+      <PageHeader
+        actions={
+          <div className="header-actions">
+            <StatusBadge tone="danger">{bundle.incident.severity.toUpperCase()}</StatusBadge>
+            <StatusBadge tone={bundle.repro?.repro_confirmed ? "success" : "warning"}>
+              {bundle.repro?.repro_confirmed ? "Proven" : "Partial"}
+            </StatusBadge>
+            <StatusBadge tone="neutral">{bundle.incident.service}</StatusBadge>
           </div>
-        </Link>
-        <div className="site-status">
-          <span className="site-status-label">Environment</span>
-          <span className="site-status-value">{bundle.incident.environment}</span>
-        </div>
-      </header>
+        }
+        eyebrow="Golden replay"
+        lead={bundle.incident.summary.customerImpact}
+        title={bundle.incident.title}
+      />
 
-      <div style={{ marginBottom: '2rem' }}>
-        <Link className="ghost-link" href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span>←</span> Back to Index
-        </Link>
-      </div>
-
-      <header className="replay-header">
-        <div>
-          <span className="section-kicker" style={{ color: 'var(--brand)' }}>Golden Replay</span>
-          <h1>{bundle.incident.title}</h1>
-          <p className="lead" style={{ fontSize: '1.25rem', maxWidth: '800px' }}>{bundle.incident.summary.customerImpact}</p>
-        </div>
-        <div className="header-actions">
-          <StatusBadge tone="danger">{bundle.incident.severity.toUpperCase()}</StatusBadge>
-          <StatusBadge tone={bundle.repro?.repro_confirmed ? "success" : "warning"}>
-            {bundle.repro?.repro_confirmed ? "PROVEN" : "PARTIAL"}
-          </StatusBadge>
-          <StatusBadge tone="neutral">{bundle.incident.service}</StatusBadge>
-        </div>
-      </header>
-
-      <section className="replay-ribbon" style={{ marginBottom: '4rem' }}>
-        <article className="card" style={{ background: 'var(--bg-subtle)' }}>
-          <span className="section-kicker">Input Signal</span>
-          <strong style={{ display: 'block', fontSize: '1.25rem', marginBottom: '0.5rem' }}>
-            {bundle.repro?.repro_confirmed ? "Confirmed Failure" : "Reported Failure"}
-          </strong>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{bundle.incident.summary.symptom}</p>
-        </article>
-        <article className="card" style={{ border: '1px solid var(--success)', background: 'oklch(75% 0.15 150 / 0.05)' }}>
-          <span className="section-kicker" style={{ color: 'var(--success)' }}>Winning Path</span>
-          <strong style={{ display: 'block', fontSize: '1.25rem', marginBottom: '0.5rem' }}>
-            {winner?.shortTitle ?? "Diagnosis pending"}
-          </strong>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{bundle.fixCard.summary}</p>
-        </article>
-        <article className="card" style={{ border: '1px solid var(--accent)', background: 'oklch(70% 0.12 250 / 0.05)' }}>
-          <span className="section-kicker" style={{ color: 'var(--accent)' }}>Outcome</span>
-          <strong style={{ display: 'block', fontSize: '1.25rem', marginBottom: '0.5rem' }}>
-            {bundle.skillCard.title}
-          </strong>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{bundle.skillCard.summary}</p>
-        </article>
+      <section className="replay-ribbon fade-in">
+        <MetricCell
+          label="Input signal"
+          value={bundle.repro?.repro_confirmed ? "Confirmed failure" : "Reported failure"}
+          detail={bundle.incident.summary.symptom}
+          tone="danger"
+        />
+        <MetricCell
+          label="Winning path"
+          value={winner?.shortTitle ?? "Diagnosis pending"}
+          detail={bundle.fixCard.summary}
+          tone="success"
+        />
+        <MetricCell
+          label="Outcome"
+          value={bundle.skillCard.title}
+          detail={bundle.skillCard.summary}
+          tone="accent"
+        />
       </section>
 
-      <section className="timeline-layout">
-        <div className="card spotlight-card">
-          <span className="section-kicker">Incident Context</span>
-          <h2 style={{ fontFamily: 'var(--font-display)', marginBottom: '1.5rem' }}>{bundle.incident.summary.symptom}</h2>
-          <p style={{ marginBottom: '2rem' }}>{bundle.repro?.failure_surface ?? "Replay artifact missing failure surface."}</p>
+      <section className="section timeline-layout">
+        <article className="dark-panel">
+          <span className="eyebrow">Incident context</span>
+          <h2 className="panel-title">{bundle.incident.summary.symptom}</h2>
+          <p>{bundle.repro?.failure_surface ?? "Replay artifact missing failure surface."}</p>
           <div className="worker-meta">
             <div>
               <span>System</span>
@@ -166,28 +157,26 @@ export default async function IncidentReplayPage({
               <strong>{formatTimestamp(bundle.incident.summary.firstObservedAt)}</strong>
             </div>
             <div>
-              <span>Region</span>
-              <strong>Global / Edge</strong>
+              <span>Incident id</span>
+              <strong>{bundle.incident.incidentId}</strong>
             </div>
           </div>
-        </div>
+        </article>
 
-        <div className="card">
-          <span className="section-kicker">Failing Signal</span>
-          <h2 style={{ fontFamily: 'var(--font-display)', marginBottom: '1rem' }}>Observed Evidence</h2>
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>{beforeAfter.beforeLabel}</p>
-          <pre className="signal-block" style={{ fontSize: '0.75rem' }}>{beforeAfter.beforeEvidence}</pre>
-        </div>
+        <article className="workspace-panel">
+          <span className="eyebrow">Failing signal</span>
+          <h2>Observed evidence</h2>
+          <p>{beforeAfter.beforeLabel}</p>
+          <CommandBlock>{beforeAfter.beforeEvidence}</CommandBlock>
+        </article>
       </section>
 
       <section className="section">
-        <div className="section-header">
-          <span className="section-kicker">Diagnosis Arena</span>
-          <h2>Specialists Race to Root Cause</h2>
-          <p>
-            ReplayX fans out bounded experts to analyze the failure surface from different angles.
-          </p>
-        </div>
+        <SectionHeader
+          eyebrow="Diagnosis arena"
+          title="Specialists race to root cause"
+          body="Bounded workers inspect the same failure surface from different failure domains, then the challenger rejects weak theories."
+        />
         <div className="worker-grid">
           {bundle.workerCards.map((worker) => (
             <WorkerCard key={worker.workerId} worker={worker} />
@@ -195,100 +184,94 @@ export default async function IncidentReplayPage({
         </div>
       </section>
 
-      <section className="section">
-        <div className="two-up-grid">
-          <article className="card" style={{ borderLeft: '4px solid var(--success)' }}>
-            <span className="section-kicker" style={{ color: 'var(--success)' }}>Winning Diagnosis</span>
-            <h2 style={{ fontFamily: 'var(--font-display)', margin: '1rem 0' }}>{winner?.shortTitle ?? "Top diagnosis pending"}</h2>
-            <p className="winner-summary" style={{ fontStyle: 'italic', marginBottom: '1.5rem' }}>
-              &ldquo;{winner?.diagnosis ?? "No winning diagnosis artifact is available yet."}&rdquo;
-            </p>
-            <div className="worker-meta" style={{ marginBottom: '1.5rem' }}>
-              <div>
-                <span>Confidence</span>
-                <strong style={{ color: 'var(--success)' }}>{winner ? formatPercent(winner.confidence) : "Pending"}</strong>
-              </div>
-              <div>
-                <span>Files Affected</span>
-                <strong>{winner?.candidateFiles.slice(0, 2).join(", ") ?? "Pending"}</strong>
-              </div>
+      <section className="section two-up-grid">
+        <article className="workspace-panel">
+          <span className="eyebrow">Winning diagnosis</span>
+          <h2>{winner?.shortTitle ?? "Top diagnosis pending"}</h2>
+          <p>{winner?.diagnosis ?? "No winning diagnosis artifact is available yet."}</p>
+          <div className="worker-meta">
+            <div>
+              <span>Confidence</span>
+              <strong>{winner ? formatPercent(winner.confidence) : "Pending"}</strong>
             </div>
-            <ul className="bullet-list">
-              {(winner?.observations ?? bundle.incident.constraints).slice(0, 3).map((entry) => (
-                <li key={entry}>{entry}</li>
-              ))}
-            </ul>
-          </article>
+            <div>
+              <span>Files affected</span>
+              <strong>{winner?.candidateFiles.slice(0, 2).join(", ") ?? "Pending"}</strong>
+            </div>
+          </div>
+          <ul className="bullet-list">
+            {(winner?.observations ?? bundle.incident.constraints).slice(0, 3).map((entry) => (
+              <li key={entry}>{entry}</li>
+            ))}
+          </ul>
+        </article>
 
-          <article className="card" style={{ borderLeft: '4px solid var(--accent)' }}>
-            <span className="section-kicker" style={{ color: 'var(--accent)' }}>Fix Proposal</span>
-            <h2 style={{ fontFamily: 'var(--font-display)', margin: '1rem 0' }}>{bundle.fixCard.title}</h2>
-            <p style={{ marginBottom: '1.5rem' }}>{bundle.fixCard.summary}</p>
-            <ul className="bullet-list">
-              {bundle.fixCard.points.map((point) => (
-                <li key={point}>{point}</li>
-              ))}
-            </ul>
-          </article>
-        </div>
+        <article className="workspace-panel">
+          <span className="eyebrow">Fix proposal</span>
+          <h2>{bundle.fixCard.title}</h2>
+          <p>{bundle.fixCard.summary}</p>
+          <ul className="bullet-list">
+            {bundle.fixCard.points.map((point) => (
+              <li key={point}>{point}</li>
+            ))}
+          </ul>
+        </article>
+      </section>
+
+      <section className="section three-up-grid">
+        <article className="workspace-panel">
+          <span className="eyebrow">Verification</span>
+          <h3>{bundle.proofCard.title}</h3>
+          <p>{bundle.proofCard.summary}</p>
+          <ul className="bullet-list">
+            {bundle.proofCard.points.map((point) => (
+              <li key={point}>{point}</li>
+            ))}
+          </ul>
+        </article>
+        <article className="workspace-panel">
+          <span className="eyebrow">Postmortem</span>
+          <h3>{bundle.postmortemCard.title}</h3>
+          <p>{bundle.postmortemCard.summary}</p>
+          <ul className="bullet-list">
+            {bundle.postmortemCard.points.map((point) => (
+              <li key={point}>{point}</li>
+            ))}
+          </ul>
+        </article>
+        <article className="workspace-panel">
+          <span className="eyebrow">New skill</span>
+          <h3>{bundle.skillCard.title}</h3>
+          <p>{bundle.skillCard.summary}</p>
+          <ul className="bullet-list">
+            {bundle.skillCard.points.map((point) => (
+              <li key={point}>{point}</li>
+            ))}
+          </ul>
+        </article>
       </section>
 
       <section className="section">
-        <div className="three-up-grid">
-          <article className="card">
-            <span className="section-kicker">Verification</span>
-            <h3 style={{ margin: '1rem 0', fontFamily: 'var(--font-display)' }}>{bundle.proofCard.title}</h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>{bundle.proofCard.summary}</p>
-            <ul className="bullet-list">
-              {bundle.proofCard.points.map((point) => (
-                <li key={point}>{point}</li>
-              ))}
-            </ul>
-          </article>
-
-          <article className="card">
-            <span className="section-kicker">Postmortem</span>
-            <h3 style={{ margin: '1rem 0', fontFamily: 'var(--font-display)' }}>{bundle.postmortemCard.title}</h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>{bundle.postmortemCard.summary}</p>
-            <ul className="bullet-list">
-              {bundle.postmortemCard.points.map((point) => (
-                <li key={point}>{point}</li>
-              ))}
-            </ul>
-          </article>
-
-          <article className="card">
-            <span className="section-kicker" style={{ color: 'var(--accent)' }}>New Skill</span>
-            <h3 style={{ margin: '1rem 0', fontFamily: 'var(--font-display)' }}>{bundle.skillCard.title}</h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>{bundle.skillCard.summary}</p>
-            <ul className="bullet-list">
-              {bundle.skillCard.points.map((point) => (
-                <li key={point}>{point}</li>
-              ))}
-            </ul>
-          </article>
-        </div>
-      </section>
-
-      <section className="section">
-        <div className="section-header">
-          <span className="section-kicker">Flight Path</span>
-          <h2>The ReplayX Narrative</h2>
-          <p>Chronological breakdown of the incident response lifecycle.</p>
-        </div>
+        <SectionHeader eyebrow="Flight path" title="The ReplayX narrative" />
         <div className="timeline-layout">
           <ol className="timeline-list">
             {bundle.timeline.map((item) => (
               <TimelineStep key={item.title} title={item.title} detail={item.detail} status={item.status} />
             ))}
           </ol>
-          <div className="card" style={{ background: 'oklch(75% 0.15 150 / 0.05)', border: '1px solid var(--success)' }}>
-            <span className="section-kicker" style={{ color: 'var(--success)' }}>Success Signal</span>
-            <h3 style={{ fontFamily: 'var(--font-display)', margin: '1rem 0' }}>{beforeAfter.afterLabel}</h3>
-            <pre className="signal-block signal-block-success" style={{ fontSize: '0.75rem' }}>{beforeAfter.afterEvidence}</pre>
-          </div>
+          <article className="workspace-panel">
+            <span className="eyebrow">Success signal</span>
+            <h3>{beforeAfter.afterLabel}</h3>
+            <CommandBlock success>{beforeAfter.afterEvidence}</CommandBlock>
+          </article>
         </div>
       </section>
-    </main>
+
+      <section className="section">
+        <Link className="button button-secondary" href="/">
+          Back to proof surface
+        </Link>
+      </section>
+    </AppFrame>
   );
 }

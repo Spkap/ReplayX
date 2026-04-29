@@ -1,45 +1,100 @@
-# Demo App
+# ReplayX Demo App
 
-ReplayX uses this intentionally buggy Node.js application to prove the diagnosis and fix loop.
+An intentionally broken Node.js application. It exists to give the ReplayX orchestrator a real, running codebase to read, command, and diagnose.
 
-The repro scripts run real commands against this app during Phase 3 (Repro) so the orchestrator can confirm bugs are real, not hypothetical.
+This is not example code. The bugs are real and seeded deliberately — each one maps to an incident class in the launch registry.
 
-## Stack
+---
 
-- Node.js + TypeScript
-- Native `node:http` server (no web framework, no database)
+## Purpose
+
+The demo app serves three roles:
+
+1. **Repro target** — the orchestrator executes `commands.failing` and `commands.healthy` from each incident fixture against this app to confirm the bug before any diagnosis begins
+2. **Codebase for Codex workers** — diagnosis workers read actual source files here to find candidate root causes
+3. **Demo surface** — engineers can hit the app directly at `http://127.0.0.1:4311` to see the broken behavior before triggering a ReplayX run
+
+---
 
 ## Start
 
 ```bash
 pnpm demo-app
+# → http://127.0.0.1:4311
 ```
 
-Default base URL: `http://127.0.0.1:4311`
+---
 
-## Endpoints
+## Routes
 
-| Route | Purpose |
+| Route | Description |
 |---|---|
-| `GET /health` | Liveness check |
-| `GET /api/repro/checkout-race?mode=concurrent\|serial` | Triggers the inventory race condition |
-| `GET /api/repro/auth-refresh?idleMinutes=30` | Triggers the token refresh bug |
-| `GET /checkout/summary?fixture=missing-taxes\|complete-quote` | Triggers the null shape bug |
+| `GET /` | Lists all available routes |
+| `GET /health` | Health check — `{ ok: true }` |
+| `GET /api/repro/checkout-race?mode=concurrent` | Concurrent checkout — triggers the oversell bug |
+| `GET /api/repro/checkout-race?mode=serial` | Sequential checkout — healthy path |
+| `GET /api/repro/auth-refresh?idleMinutes=<n>` | Auth refresh scenario — `idleMinutes` ≥ 20 triggers the failure |
+| `GET /checkout/summary?fixture=missing-taxes` | Null data shape — renders a page with a missing field |
+| `GET /checkout/summary?fixture=complete-quote` | Complete quote — healthy render path |
 
-## Incident Mapping
+---
 
-| Incident | Buggy files | What breaks |
+## Seeded Bugs
+
+| Bug | Route | Incident class |
 |---|---|---|
-| `incident-checkout-race-001` | `src/checkout/submit-order.ts`<br>`src/inventory/reserve-stock.ts`<br>`src/queue/checkout-worker.ts` | Stale inventory snapshot before async delay — concurrent orders drive inventory negative |
-| `incident-auth-session-002` | `src/auth/refresh-session.ts`<br>`src/auth/token-store.ts`<br>`src/middleware/require-session.ts` | Idle-session refresh reuses expired access token instead of rotating a new one |
-| `incident-null-shape-003` | `src/orders/quote-adapter.ts`<br>`src/orders/build-summary.ts`<br>`src/routes/order-summary.tsx` | Null `taxes` array from upstream passed to `.reduce()` without normalization |
+| **Checkout race condition** — concurrent orders oversell the same SKU | `/api/repro/checkout-race?mode=concurrent` | `checkout-race-condition` |
+| **Auth token session failure** — stale token accepted mid-flow | `/api/repro/auth-refresh?idleMinutes=30` | `auth-token-session-failure` |
+| **Null data shape** — `taxes` field arrives `null`, downstream crashes | `/checkout/summary?fixture=missing-taxes` | `null-data-shape-failure` |
 
-## Repro Commands
+---
+
+## Repro Scripts
+
+These scripts are what the orchestrator runs during Phase 3 (Repro):
+
+```bash
+# Checkout race — concurrent (expected: exits 1)
+pnpm tsx demo_app/scripts/repro-checkout-race.ts
+
+# Checkout race — serial healthy path (expected: exits 0)
+pnpm tsx demo_app/scripts/repro-checkout-race.ts --serial
+
+# Auth refresh failure
+pnpm tsx demo_app/scripts/repro-auth-refresh.ts
+
+# Null data shape failure
+pnpm tsx demo_app/scripts/repro-null-shape.ts
+```
+
+Or use the named pnpm shortcuts from the repo root:
 
 ```bash
 pnpm demo-app:checkout-race
-pnpm demo-app:auth-refresh -- --idle-minutes 30
-pnpm demo-app:null-shape -- --fixture missing-taxes
+pnpm demo-app:auth-refresh
+pnpm demo-app:null-shape
 ```
 
-These are also the `commands.failing` values inside the incident fixture JSON files.
+---
+
+## Source Layout
+
+```
+demo_app/
+├── server.ts              ← HTTP server entry point (port 4311)
+├── src/
+│   ├── checkout/          ← submit-order.ts — the race-condition bug lives here
+│   ├── inventory/         ← reserve-stock.ts — non-atomic reservation write
+│   ├── queue/             ← checkout-worker.ts — async worker that races with the handler
+│   ├── auth/              ← token refresh path — stale session bug
+│   ├── orders/
+│   ├── middleware/
+│   ├── routes/            ← order-summary.ts — null field rendering
+│   └── types.ts
+└── scripts/
+    ├── repro-checkout-race.ts
+    ├── repro-auth-refresh.ts
+    └── repro-null-shape.ts
+```
+
+The bugs are in `src/checkout/submit-order.ts`, `src/inventory/reserve-stock.ts`, `src/queue/checkout-worker.ts`, and `src/routes/order-summary.ts`. Do not fix them — they are the repro surface.

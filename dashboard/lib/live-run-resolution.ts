@@ -190,7 +190,7 @@ const applySeededPatch = async (
     case "null-data-shape-failure":
       return applyNullShapePatch(sandboxRoot);
     default:
-      throw new Error(`ReplayX does not have a seeded patch template for ${incident.incidentClass}`);
+      throw new Error(`ReplayX does not have an automated patch template for ${incident.incidentClass}`);
   }
 };
 
@@ -393,7 +393,7 @@ export const runSeededPatchValidation = async ({
       return {
         status: "blocked",
         summary:
-          "ReplayX generated a seeded patch candidate, but the validation loop did not produce a verified PR-ready outcome.",
+          "ReplayX generated a patch candidate, but the validation loop did not produce a verified PR-ready outcome.",
         changedFiles,
         validationResults: { failing, healthy },
         branchName: null,
@@ -403,7 +403,7 @@ export const runSeededPatchValidation = async ({
         diffPath,
         prUrl: null,
         rollbackNote,
-        blocker: "Validation failed after applying the seeded patch candidate.",
+        blocker: "Validation failed after applying the proposed patch.",
         evidenceRefs: [diffPath]
       };
     }
@@ -428,8 +428,8 @@ export const runSeededPatchValidation = async ({
       summary:
         blocker === null
           ? prUrl
-            ? "ReplayX validated the seeded patch candidate and opened a GitHub pull request."
-            : "ReplayX validated the seeded patch candidate and prepared a PR-ready bundle."
+            ? "ReplayX validated the proposed patch and opened a GitHub pull request."
+            : "ReplayX validated the proposed patch and prepared a PR-ready bundle."
           : blocker,
       changedFiles,
       validationResults: { failing, healthy },

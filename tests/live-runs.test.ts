@@ -18,8 +18,10 @@ const {
   runReplayXLivePipeline
 } = liveRunsModule as typeof import("../dashboard/lib/live-runs.js");
 
-test("live run store creates a Slack-sourced run and completes the ReplayX phase flow", async () => {
+test("fresh Slack incidents run realtime investigation without seeded fixture routing", async () => {
   const tempRepo = await mkdtemp(path.join(os.tmpdir(), "replayx-live-run-"));
+  const previousValidationCommand = process.env.REPLAYX_REALTIME_VALIDATION_COMMAND;
+  process.env.REPLAYX_REALTIME_VALIDATION_COMMAND = "git status --short";
 
   try {
     const run = await createReplayXRun(
@@ -39,10 +41,12 @@ test("live run store creates a Slack-sourced run and completes the ReplayX phase
 
     assert.equal(run.source, "slack");
     assert.equal(run.origin, "live-run");
+    assert.equal(run.executionMode, "realtime");
     assert.equal(run.status, "queued");
     assert.equal(run.workspaceId, "workspace-default");
     assert.equal(run.issue.text.includes("overselling"), true);
-    assert.equal(run.incidentId, "incident-checkout-race-001");
+    assert.notEqual(run.incidentId, "incident-checkout-race-001");
+    assert.equal(run.capability.status, "analysis_only");
     assert.equal(run.phases[0].id, "incident-intake");
 
     await runReplayXLivePipeline(run.runId, {
@@ -59,16 +63,26 @@ test("live run store creates a Slack-sourced run and completes the ReplayX phase
       phaseDelayMs: 0
     });
 
-    assert.equal(completed.status, "resolved_to_pr");
-    assert.equal(completed.currentPhaseId, "postmortem-and-skill");
-    assert.equal(completed.phases.every((phase) => phase.status === "completed"), true);
-    assert.match(completed.cards.winningDiagnosis.diagnosis, /inventory|checkout|race/i);
-    assert.match(completed.cards.fix.summary, /stock|reservation|checkout/i);
-    assert.match(completed.cards.skill.summary, /fast-path|checkout-race-condition/i);
-    assert.equal(completed.pullRequest.status, "ready");
-    assert.match(completed.pullRequest.previewPath ?? "", /pr-preview\.md$/);
-    assert.ok(completed.events.length >= 8);
+    assert.equal(completed.status, "blocked");
+    assert.equal(completed.currentPhaseId, "review-and-regression");
+    assert.equal(completed.phases[0]?.status, "completed");
+    assert.equal(completed.phases[5]?.status, "completed");
+    assert.equal(completed.phases[6]?.status, "blocked");
+    assert.match(completed.cards.winningDiagnosis.diagnosis, /candidate|source|repo/i);
+    assert.match(completed.cards.fix.summary, /Investigate|Collect/i);
+    assert.match(completed.cards.proof.regression_summary, /Realtime validation baseline/i);
+    assert.equal(completed.pullRequest.status, "unavailable");
+    assert.match(completed.pullRequest.previewPath ?? "", /realtime-investigation\.md$/);
+    assert.ok(completed.events.some((event) => event.kind === "run.realtime_investigation_complete"));
+    assert.ok(completed.evidence.some((item) => item.label === "Realtime validation baseline"));
+    assert.ok(completed.evidence.some((item) => item.artifactId === "preview" && item.status === "passed"));
+    assert.ok(completed.decisions.some((decision) => /Stop before claiming a fix/i.test(decision.decision)));
   } finally {
+    if (previousValidationCommand === undefined) {
+      delete process.env.REPLAYX_REALTIME_VALIDATION_COMMAND;
+    } else {
+      process.env.REPLAYX_REALTIME_VALIDATION_COMMAND = previousValidationCommand;
+    }
     await rm(tempRepo, { recursive: true, force: true });
   }
 });
@@ -87,6 +101,7 @@ test("live run defaults resolve the repo root when launched from the dashboard d
       {
         source: "slack",
         text: "checkout race condition from Slack",
+        incidentId: "incident-checkout-race-001",
         channel: "CBUGS123"
       },
       {
@@ -112,7 +127,8 @@ test("analytics snapshot summarizes run health and validation outcomes", async (
     const run = await createReplayXRun(
       {
         source: "manual",
-        text: "checkout is overselling inventory when two users buy at the same time"
+        text: "checkout is overselling inventory when two users buy at the same time",
+        incidentId: "incident-checkout-race-001"
       },
       {
         repoRoot: process.cwd(),
@@ -142,6 +158,9 @@ test("analytics snapshot summarizes run health and validation outcomes", async (
     assert.equal(analytics.prAcceptanceRate, 1);
     assert.equal(analytics.reproSuccessRate, 1);
     assert.equal(analytics.operatorInterventionRate, 0);
+    assert.equal(analytics.evidenceBackedRunRate, 1);
+    assert.ok(analytics.evidenceRecords >= 7);
+    assert.ok(analytics.decisionRecords >= 4);
     assert.equal(analytics.topRecurringIncidentFingerprints[0]?.incidentId, "incident-checkout-race-001");
   } finally {
     await rm(tempRepo, { recursive: true, force: true });
@@ -156,6 +175,7 @@ test("production-targeted runs pause for approval before execution starts", asyn
       {
         source: "manual",
         text: "checkout is overselling inventory when two users buy at the same time",
+        incidentId: "incident-checkout-race-001",
         environmentTarget: "production"
       },
       {
@@ -170,31 +190,114 @@ test("production-targeted runs pause for approval before execution starts", asyn
     assert.equal(run.approvals.length, 1);
     assert.equal(run.approvals[0]?.kind, "production_access");
     assert.match(run.currentBlocker ?? "", /Production-targeted runs require operator approval/i);
+    assert.ok(run.evidence.some((item) => item.kind === "policy" && item.status === "blocked"));
   } finally {
     await rm(tempRepo, { recursive: true, force: true });
   }
 });
 
-test("unsupported free-form incidents are rejected instead of silently mapped to a seeded checkout incident", async () => {
+test("live pipeline does not bypass pending production approvals", async () => {
+  const tempRepo = await mkdtemp(path.join(os.tmpdir(), "replayx-approval-gate-"));
+  const options = {
+    repoRoot: process.cwd(),
+    runStoreRoot: path.join(tempRepo, ".replayx-runs"),
+    artifactsRoot: path.join(tempRepo, "artifacts"),
+    phaseDelayMs: 0
+  };
+
+  try {
+    const run = await createReplayXRun(
+      {
+        source: "manual",
+        text: "checkout is overselling inventory when two users buy at the same time",
+        incidentId: "incident-checkout-race-001",
+        environmentTarget: "production"
+      },
+      options
+    );
+
+    const blocked = await runReplayXLivePipeline(run.runId, options);
+
+    assert.equal(blocked.status, "awaiting_approval");
+    assert.equal(blocked.approvals.some((approval) => approval.status === "pending"), true);
+    assert.equal(blocked.phases.every((phase) => phase.status === "queued"), true);
+    assert.equal(blocked.pullRequest.status, "pending");
+  } finally {
+    await rm(tempRepo, { recursive: true, force: true });
+  }
+});
+
+test("fresh free-form incidents create realtime analysis runs instead of being rejected or fixture-routed", async () => {
   const tempRepo = await mkdtemp(path.join(os.tmpdir(), "replayx-unsupported-"));
 
   try {
-    await assert.rejects(
-      createReplayXRun(
-        {
-          source: "manual",
-          text: "database deadlock in billing ledger after replica failover"
-        },
-        {
-          repoRoot: process.cwd(),
-          runStoreRoot: path.join(tempRepo, ".replayx-runs"),
-          artifactsRoot: path.join(tempRepo, "artifacts"),
-          phaseDelayMs: 0
-        }
-      ),
-      /supports only the seeded/i
+    const run = await createReplayXRun(
+      {
+        source: "manual",
+        text: "database deadlock in billing ledger after replica failover"
+      },
+      {
+        repoRoot: process.cwd(),
+        runStoreRoot: path.join(tempRepo, ".replayx-runs"),
+        artifactsRoot: path.join(tempRepo, "artifacts"),
+        phaseDelayMs: 0
+      }
     );
+
+    assert.equal(run.status, "queued");
+    assert.equal(run.executionMode, "realtime");
+    assert.equal(run.capability.status, "analysis_only");
+    assert.equal(run.policy.analysisOnly, true);
+    assert.equal(run.policy.patchAndValidate, false);
+    assert.equal(run.currentBlocker, null);
+    assert.match(run.incidentId, /^incident-database-deadlock/);
+    assert.match(run.events[0]?.summary ?? "", /accepted the incident/i);
+    assert.ok(run.evidence.some((item) => item.kind === "intake" && item.status === "info"));
+    assert.ok(run.decisions.some((decision) => decision.status === "accepted"));
   } finally {
+    await rm(tempRepo, { recursive: true, force: true });
+  }
+});
+
+test("realtime analysis runs produce evidence packets and stop before claiming a seeded fix", async () => {
+  const tempRepo = await mkdtemp(path.join(os.tmpdir(), "replayx-capability-limited-"));
+  const previousValidationCommand = process.env.REPLAYX_REALTIME_VALIDATION_COMMAND;
+  process.env.REPLAYX_REALTIME_VALIDATION_COMMAND = "git status --short";
+  const options = {
+    repoRoot: process.cwd(),
+    runStoreRoot: path.join(tempRepo, ".replayx-runs"),
+    artifactsRoot: path.join(tempRepo, "artifacts"),
+    phaseDelayMs: 0
+  };
+
+  try {
+    const run = await createReplayXRun(
+      {
+        source: "manual",
+        text: "database deadlock in billing ledger after replica failover"
+      },
+      options
+    );
+
+    const completed = await runReplayXLivePipeline(run.runId, options);
+
+    assert.equal(completed.executionMode, "realtime");
+    assert.equal(completed.capability.status, "analysis_only");
+    assert.equal(completed.status, "blocked");
+    assert.equal(completed.pullRequest.status, "unavailable");
+    assert.match(completed.currentBlocker ?? "", /Bounded Codex patch worker/i);
+    assert.equal(completed.phases[0]?.status, "completed");
+    assert.equal(completed.phases[1]?.status, "completed");
+    assert.equal(completed.phases[5]?.status, "completed");
+    assert.equal(completed.phases[6]?.status, "blocked");
+    assert.ok(completed.evidence.some((item) => item.label === "Realtime investigation packet"));
+    assert.ok(completed.decisions.some((decision) => /Stop before claiming a fix/i.test(decision.decision)));
+  } finally {
+    if (previousValidationCommand === undefined) {
+      delete process.env.REPLAYX_REALTIME_VALIDATION_COMMAND;
+    } else {
+      process.env.REPLAYX_REALTIME_VALIDATION_COMMAND = previousValidationCommand;
+    }
     await rm(tempRepo, { recursive: true, force: true });
   }
 });
@@ -206,7 +309,8 @@ test("cancelled runs remain cancelled when the live pipeline is invoked again", 
     const run = await createReplayXRun(
       {
         source: "manual",
-        text: "checkout is overselling inventory when two users buy at the same time"
+        text: "checkout is overselling inventory when two users buy at the same time",
+        incidentId: "incident-checkout-race-001"
       },
       {
         repoRoot: process.cwd(),
@@ -251,7 +355,8 @@ test("archived terminal runs stay readable, disappear from the live fleet, and r
     const run = await createReplayXRun(
       {
         source: "manual",
-        text: "checkout is overselling inventory when two users buy at the same time"
+        text: "checkout is overselling inventory when two users buy at the same time",
+        incidentId: "incident-checkout-race-001"
       },
       options
     );
@@ -291,7 +396,8 @@ test("archived runs are read-only and cannot be retried", async () => {
     const run = await createReplayXRun(
       {
         source: "manual",
-        text: "checkout is overselling inventory when two users buy at the same time"
+        text: "checkout is overselling inventory when two users buy at the same time",
+        incidentId: "incident-checkout-race-001"
       },
       options
     );
@@ -300,6 +406,37 @@ test("archived runs are read-only and cannot be retried", async () => {
     await archiveReplayXRun(run.runId, options);
 
     await assert.rejects(retryReplayXRun(run.runId, options), /cannot retry an archived run/i);
+  } finally {
+    await rm(tempRepo, { recursive: true, force: true });
+  }
+});
+
+test("retry preserves the original full-capability incident selection", async () => {
+  const tempRepo = await mkdtemp(path.join(os.tmpdir(), "replayx-retry-incident-"));
+  const options = {
+    repoRoot: process.cwd(),
+    runStoreRoot: path.join(tempRepo, ".replayx-runs"),
+    artifactsRoot: path.join(tempRepo, "artifacts"),
+    phaseDelayMs: 0
+  };
+
+  try {
+    const run = await createReplayXRun(
+      {
+        source: "manual",
+        text: "session expires for idle users after refresh",
+        incidentId: "incident-auth-session-002"
+      },
+      options
+    );
+
+    await runReplayXLivePipeline(run.runId, options);
+    const retried = await retryReplayXRun(run.runId, options);
+
+    assert.equal(retried.previousRunId, run.runId);
+    assert.equal(retried.incidentId, "incident-auth-session-002");
+    assert.equal(retried.capability.status, "full");
+    assert.match(retried.incidentPath, /auth-token-session-failure\.json$/);
   } finally {
     await rm(tempRepo, { recursive: true, force: true });
   }
@@ -318,7 +455,8 @@ test("ReplayX rejects archive requests for non-terminal runs", async () => {
     const run = await createReplayXRun(
       {
         source: "manual",
-        text: "checkout is overselling inventory when two users buy at the same time"
+        text: "checkout is overselling inventory when two users buy at the same time",
+        incidentId: "incident-checkout-race-001"
       },
       options
     );
