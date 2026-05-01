@@ -890,22 +890,22 @@ export function LiveRunClient({
             <div className="rail-actions">
               {run.approvals.some((approval) => approval.status === "pending") ? (
                 <button className="button button-primary" disabled={pendingAction !== null} onClick={() => void handleAction("approve")} type="button">
-                  {pendingAction === "approve" ? "Approving..." : "Approve next action"}
+                  {pendingAction === "approve" ? "Approving…" : "Approve next action"}
                 </button>
               ) : null}
               {!isTerminalStatus(run.status) ? (
                 <button className="button button-secondary" disabled={pendingAction !== null} onClick={() => void handleAction("cancel")} type="button">
-                  {pendingAction === "cancel" ? "Cancelling..." : "Cancel run"}
+                  {pendingAction === "cancel" ? "Cancelling…" : "Cancel run"}
                 </button>
               ) : null}
               {isTerminalStatus(run.status) && !run.archivedAt ? (
                 <button className="button button-secondary" disabled={pendingAction !== null} onClick={() => void handleAction("archive")} type="button">
-                  {pendingAction === "archive" ? "Archiving..." : "Archive run"}
+                  {pendingAction === "archive" ? "Archiving…" : "Archive run"}
                 </button>
               ) : null}
               {isTerminalStatus(run.status) && !run.archivedAt ? (
                 <button className="button button-secondary" disabled={pendingAction !== null} onClick={() => void handleAction("retry")} type="button">
-                  {pendingAction === "retry" ? "Retrying..." : "Retry run"}
+                  {pendingAction === "retry" ? "Retrying…" : "Retry run"}
                 </button>
               ) : null}
             </div>

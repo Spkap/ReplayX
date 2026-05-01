@@ -72,6 +72,25 @@ export default async function HomePage({
         { label: "Claim rule", value: "Proof first" }
       ];
 
+  const proofSteps = [
+    {
+      label: "Slack or API",
+      body: "The incident arrives exactly as written, without being polished into a fake prompt."
+    },
+    {
+      label: "Evidence packet",
+      body: "ReplayX captures commands, repo facts, worker theories, rejected paths, and gates."
+    },
+    {
+      label: "Validated patch",
+      body: "The run advances only when the patch story has a regression proof and rollback path."
+    },
+    {
+      label: "Memory",
+      body: "Resolved incidents write back into reusable incident skill artifacts."
+    }
+  ];
+
   return (
     <AppFrame
       active="home"
@@ -80,116 +99,113 @@ export default async function HomePage({
       navItems={navItems}
       statusDetail={controlPlaneStatus}
     >
-      <section className="home-grid fade-in">
-        <div className="home-copy">
-          <div>
-            <span className="eyebrow">Incident proof engine</span>
-            <h1>Replay proof before panic.</h1>
-          </div>
-          <p>
-            ReplayX turns a Slack report or manual incident into a bounded Codex investigation:
-            repro evidence, challenged diagnosis, patch strategy, regression proof, postmortem,
-            and reusable incident memory.
-          </p>
-          <div className="hero-actions">
-            <Link className="button button-primary" href={newRunPath}>
-              Start live incident
-            </Link>
-            {latestLivePath && latestLiveRun?.runId !== featuredProofRun?.runId ? (
-              <Link className="button button-secondary" href={latestLivePath}>
-                Open latest run
+      <div className="proof-home fade-in">
+        <section className="home-grid">
+          <div className="home-copy">
+            <div>
+              <span className="eyebrow">Incident proof engine</span>
+              <h1>Turn incident reports into proof.</h1>
+            </div>
+            <p>
+              ReplayX is the operator surface for coding-agent incident repair. Start with a Slack report
+              or raw incident text, then follow the proof ledger until diagnosis, patch validation, PR output,
+              postmortem, and reusable memory are all visible.
+            </p>
+            <div className="hero-actions">
+              <Link className="button button-primary" href={newRunPath}>
+                Start live incident
               </Link>
-            ) : null}
-            <Link className="button button-secondary" href={featuredProofPath}>
-              {featuredProofRun ? "Open featured proof" : "Open run form"}
-            </Link>
+              {latestLivePath && latestLiveRun?.runId !== featuredProofRun?.runId ? (
+                <Link className="button button-secondary" href={latestLivePath}>
+                  Open latest run
+                </Link>
+              ) : null}
+              <Link className="button button-secondary" href={featuredProofPath}>
+                {featuredProofRun ? "Open featured proof" : "Open run form"}
+              </Link>
+            </div>
+            <div className="proof-flow" aria-label="ReplayX proof flow">
+              {proofSteps.map((step, index) => (
+                <div className="proof-flow-row" key={step.label}>
+                  <span className="proof-flow-index">{String(index + 1).padStart(2, "0")}</span>
+                  <div>
+                    <strong>{step.label}</strong>
+                    <p>{step.body}</p>
+                  </div>
+                  <span className="ops-meta">{index === proofSteps.length - 1 ? "writeback" : "gate"}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="metric-grid">
+
+          <aside className="dark-panel home-proof">
+            <div className="proof-title">
+              <div>
+                <span className="eyebrow">Featured run</span>
+                <h2>{featuredProofTitle}</h2>
+              </div>
+              <StatusPill tone={featuredProofRun ? "success" : "warning"}>
+                {featuredProofRun ? featuredProofRun.pullRequest.status.replaceAll("_", " ") : "Ready"}
+              </StatusPill>
+            </div>
+            <p className="proof-summary">{featuredProofSummary}</p>
+            <div className="metric-grid">
+              {featuredProofMeta.map((item) => (
+                <MetricCell key={item.label} label={item.label} value={item.value} />
+              ))}
+            </div>
+            <Link className="button button-primary" href={featuredProofPath}>
+              {featuredProofRun ? "Enter workspace" : "Create proof run"}
+            </Link>
+          </aside>
+        </section>
+
+        <section className="workspace-surface">
+          <SectionHeader
+            eyebrow="Session model"
+            title="The one job is deciding what proof allows next."
+            body="This is not a war-room dashboard. The screen has to keep the responder oriented around state, evidence, and the next permitted action."
+          />
+          <div className="metric-strip">
             <MetricCell label="Primary loop" value="Intake -> proof" />
             <MetricCell label="Default mode" value="Realtime" />
             <MetricCell label="Memory" value="Skill writeback" />
             <MetricCell label="Fixtures" value={`${incidents.length} evals`} />
           </div>
-        </div>
+        </section>
 
-        <aside className="dark-panel home-proof">
-          <div className="proof-title">
-            <div>
-              <span className="eyebrow">Featured run</span>
-              <h2>{featuredProofTitle}</h2>
-            </div>
-            <StatusPill tone={featuredProofRun ? "success" : "warning"}>
-              {featuredProofRun ? featuredProofRun.pullRequest.status.replaceAll("_", " ") : "Ready"}
-            </StatusPill>
-          </div>
-          <p className="proof-summary">{featuredProofSummary}</p>
-          <div className="metric-grid">
-            {featuredProofMeta.map((item) => (
-              <MetricCell key={item.label} label={item.label} value={item.value} />
+        <section className="workspace-surface" id="incident-list">
+          <SectionHeader
+            eyebrow="Fixture lab"
+            title="Seeded incidents are evals, not the default product path."
+            body="They stay visible for regression testing and demos. A fresh Slack or API report starts from realtime evidence unless a fixture id is supplied."
+          />
+          <div className="incident-grid">
+            {incidents.map((incident) => (
+              <Link
+                className="panel incident-card row-card-link"
+                href={`/incidents/${incident.incidentId}`}
+                key={incident.incidentId}
+              >
+                <div className="evidence-head">
+                  <StatusPill tone={incident.severity === "high" ? "danger" : "warning"}>
+                    {incident.severity}
+                  </StatusPill>
+                  <span className="ops-meta">{incident.environment}</span>
+                </div>
+                <div>
+                  <h3 className="panel-title">{incident.title}</h3>
+                  <p>{incident.summary.symptom}</p>
+                </div>
+                <div className="evidence-head">
+                  <span className="ops-meta">{incident.service}</span>
+                  <strong>Replay</strong>
+                </div>
+              </Link>
             ))}
           </div>
-          <Link className="button button-primary" href={featuredProofPath}>
-            {featuredProofRun ? "Enter workspace" : "Create proof run"}
-          </Link>
-        </aside>
-      </section>
-
-      <section className="section">
-        <SectionHeader
-          eyebrow="Session model"
-          title="One operator session, three gates"
-          body="The product does not need a marketing tour. It needs to orient the responder, expose the evidence, and make the next decision unmistakable."
-        />
-        <div className="three-column">
-          <article className="panel">
-            <span className="eyebrow">1. Intake</span>
-            <h3 className="panel-title">Capture the incident as-is</h3>
-            <p>Slack or manual text becomes the immutable incident packet. Plain reports do not silently fall back to seeded fixture answers.</p>
-          </article>
-          <article className="panel">
-            <span className="eyebrow">2. Evidence</span>
-            <h3 className="panel-title">Show every reason</h3>
-            <p>Commands, repo search, worker theories, rejected paths, and operator decisions stay visible in a single proof ledger.</p>
-          </article>
-          <article className="panel">
-            <span className="eyebrow">3. Resolution</span>
-            <h3 className="panel-title">Advance only with proof</h3>
-            <p>ReplayX reaches PR-ready output only after patch validation, regression evidence, postmortem, and reusable memory are in place.</p>
-          </article>
-        </div>
-      </section>
-
-      <section className="section" id="incident-list">
-        <SectionHeader
-          eyebrow="Fixture lab"
-          title="Seeded incidents are evals, not the product default"
-          body="These bundles remain useful for regression testing and demos. A live Slack/API report starts from realtime evidence unless a fixture id is supplied."
-        />
-        <div className="incident-grid">
-          {incidents.map((incident) => (
-            <Link
-              className="panel incident-card row-card-link"
-              href={`/incidents/${incident.incidentId}`}
-              key={incident.incidentId}
-            >
-              <div className="evidence-head">
-                <StatusPill tone={incident.severity === "high" ? "danger" : "warning"}>
-                  {incident.severity}
-                </StatusPill>
-                <span className="ops-meta">{incident.environment}</span>
-              </div>
-              <div>
-                <h3 className="panel-title">{incident.title}</h3>
-                <p>{incident.summary.symptom}</p>
-              </div>
-              <div className="evidence-head">
-                <span className="ops-meta">{incident.service}</span>
-                <strong>Replay</strong>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
+        </section>
+      </div>
     </AppFrame>
   );
 }

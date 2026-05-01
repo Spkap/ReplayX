@@ -88,7 +88,7 @@ export function NewRunForm({ accessToken }: NewRunFormProps) {
           <textarea
             value={text}
             onChange={(event) => setText(event.target.value)}
-            placeholder="Checkout is overselling inventory after concurrent purchases..."
+            placeholder="Checkout is overselling inventory after concurrent purchases…"
             rows={7}
             required
           />
@@ -134,7 +134,7 @@ export function NewRunForm({ accessToken }: NewRunFormProps) {
         {error ? <p className="form-alert">{error}</p> : null}
         <div className="rail-actions">
           <button className="button button-primary" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Creating run" : "Start live incident"}
+            {isSubmitting ? "Creating run…" : "Start live incident"}
           </button>
         </div>
       </form>

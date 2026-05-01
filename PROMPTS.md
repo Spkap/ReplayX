@@ -1,8 +1,8 @@
 # ReplayX Prompt Catalog
 
-Stable root-level home for prompts that must be discoverable from the repo root.
+Stable root-level home for prompt rules that must be discoverable from the repo root.
 
-Extended prompt development notes and the full worker prompt pack live in [`Docs/replayx-codex-first-prompts.md`](Docs/replayx-codex-first-prompts.md).
+Runtime prompt templates live in `orchestrator/prompts/`. Public product and engineering documentation lives in `Docs/`.
 
 ---
 
@@ -64,7 +64,7 @@ You do not produce the final fix yourself unless the workflow explicitly collaps
 | File | Purpose |
 |---|---|
 | `PROMPTS.md` | Stable, root-discoverable prompts. Source of truth for Prompt 00. |
-| `Docs/replayx-codex-first-prompts.md` | Extended prompt pack, worker prompts, and design rationale. |
-| `Docs/replayx-build-with-codex-usage-prompts.md` | Operator-facing prompts used while building ReplayX itself. |
+| `orchestrator/prompts/` | Runtime prompt templates consumed by the orchestrator. |
+| `Docs/ENGINEERING.md` | Engineering explanation of how Codex workers fit into the runtime. |
 
-If Prompt 00 changes, update both `PROMPTS.md` and `Docs/replayx-codex-first-prompts.md` in the same patch so both copies stay aligned.
+If Prompt 00 changes, update `PROMPTS.md` and any affected runtime prompt templates in the same patch.

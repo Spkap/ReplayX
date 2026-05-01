@@ -74,7 +74,7 @@ ReplayX/
 - For hosted worker paths outside the Codex SDK, prefer the Responses API with ReplayX-owned orchestration.
 - Every phase must produce machine-readable JSON artifacts. No opaque agent traces.
 
-Full technical reference: [`Docs/replayx-architecture.md`](Docs/replayx-architecture.md)
+Full technical reference: [`Docs/ENGINEERING.md`](Docs/ENGINEERING.md)
 
 ---
 
@@ -93,8 +93,8 @@ When reviewing frontend code, flag anything that breaks the design system or fee
 - **Keep changes tight.** Each change should be the narrowest useful edit. Do not refactor things that are not broken.
 - **Verify after each batch.** Run the narrowest relevant verification command after any code change.
 - **No stale abstractions.** Do not reintroduce OpenAI Agents SDK patterns, sandbox-agent architecture, or agent handoff primitives.
-- **Keep docs in sync.** If phase behavior changes, update `PIPELINE.md`. If `types.ts` changes, update `incidents/README.md` and `Docs/replayx-architecture.md`.
-- **Prompt ownership.** If Prompt 00 changes, update both `PROMPTS.md` and `Docs/replayx-codex-first-prompts.md` in the same patch.
+- **Keep docs in sync.** If phase behavior changes, update `PIPELINE.md`. If `types.ts` changes, update `incidents/README.md` and `Docs/ENGINEERING.md`.
+- **Prompt ownership.** If Prompt 00 changes, update `PROMPTS.md` and any affected runtime prompt templates in `orchestrator/prompts/`.
 
 ---
 
@@ -115,8 +115,8 @@ That means:
 ## Prompting Rules
 
 - Stable operating rules live in `AGENTS.md`, `CLAUDE.md`, and `PROMPTS.md`.
-- The full worker prompt pack lives in `Docs/replayx-codex-first-prompts.md`.
-- Build and operator prompts live in `Docs/replayx-build-with-codex-usage-prompts.md`.
+- Stable prompt ownership lives in `PROMPTS.md`.
+- Runtime prompt templates live in `orchestrator/prompts/`.
 - Dynamic incident detail belongs in the user prompt layer, not the system prompt.
 - Prefer explicit output schemas and verification commands in every worker prompt.
 - Keep prompts concise and operationally focused.
@@ -152,8 +152,8 @@ A task is complete only when:
 
 | Doc | Purpose |
 |---|---|
+| [`README.md`](README.md) | Product overview, quickstart, and doc navigation |
 | [`PIPELINE.md`](PIPELINE.md) | Phase model, flow diagram, specialist table, artifact map |
-| [`Docs/replayx-architecture.md`](Docs/replayx-architecture.md) | Stack, runtime split, data flow, env vars, implementation status |
-| [`Docs/replayx-incident-authoring-guide.md`](Docs/replayx-incident-authoring-guide.md) | How to add a new incident class end to end |
-| [`Docs/replayx-demo-runbook.md`](Docs/replayx-demo-runbook.md) | Live demo setup, preflight, and operational flow |
-| [`Docs/replayx-codex-first-architecture.md`](Docs/replayx-codex-first-architecture.md) | Architectural rationale — why Codex-first, why not Agents SDK |
+| [`Docs/ENGINEERING.md`](Docs/ENGINEERING.md) | Runtime architecture, component map, Codex worker model, data storage |
+| [`Docs/OPERATIONS.md`](Docs/OPERATIONS.md) | Local setup, Slack intake, routes, env vars, and verification |
+| [`Docs/INCIDENT_AUTHORING.md`](Docs/INCIDENT_AUTHORING.md) | How to add a new incident class end to end |

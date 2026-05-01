@@ -36,7 +36,7 @@ match:
   incident_class: checkout-race-condition
   winning_worker: diagnosis_concurrency
 fix_strategy: safe_fix
-demo_summary: Best balance of safety and clarity among the proposed fixes.
+operator_summary: Best balance of safety and clarity among the proposed fixes.
 ```
 
 | Field | Description |
@@ -46,8 +46,8 @@ demo_summary: Best balance of safety and clarity among the proposed fixes.
 | `match.service` | Service the incident occurred in — used in scoring |
 | `match.incident_class` | Incident class — heaviest scoring signal |
 | `match.winning_worker` | Which diagnosis worker identified the root cause |
-| `fix_strategy` | Winning fix strategy: `minimal_fix`, `safe_fix`, or `durable_fix` |
-| `demo_summary` | One-line rationale for the winning strategy |
+| `fix_strategy` | Selected fix strategy: `minimal_fix`, `safe_fix`, or `durable_fix` |
+| `operator_summary` | One-line rationale for the selected strategy |
 
 ---
 
@@ -63,4 +63,4 @@ demo_summary: Best balance of safety and clarity among the proposed fixes.
 
 Skills are written automatically at Phase 8 completion — do not edit them by hand. To add a new incident class:
 
-→ [Docs/replayx-incident-authoring-guide.md](../Docs/replayx-incident-authoring-guide.md)
+See [Docs/INCIDENT_AUTHORING.md](../Docs/INCIDENT_AUTHORING.md).

@@ -109,7 +109,7 @@
   ],
   "constraints": [
     "Keep the fix limited to summary and quote-shape handling.",
-    "Do not introduce a runtime schema library for the demo app."
+    "Do not introduce a runtime schema library for the target app."
   ],
   "acceptanceCriteria": [
     "The failing fixture no longer throws when taxes is null or omitted.",

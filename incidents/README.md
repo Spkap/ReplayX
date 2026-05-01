@@ -1,6 +1,6 @@
 # Incident Fixtures
 
-Validated incident bundles for the ReplayX launch registry. Each fixture is a structured JSON file that fully describes a production-style incident — the evidence, the repro commands, the recent changes, and the acceptance criteria for a fix.
+Validated incident bundles for the ReplayX fixture registry. Each fixture is a structured JSON file that fully describes a production-style incident — the evidence, the repro commands, the recent changes, and the acceptance criteria for a fix.
 
 The orchestrator reads a fixture to start any run. Nothing needs a live monitoring system or a real production environment.
 
@@ -62,4 +62,4 @@ Any missing or extra key throws before the orchestrator proceeds.
 
 ## Adding a New Incident Class
 
-→ [Docs/replayx-incident-authoring-guide.md](../Docs/replayx-incident-authoring-guide.md)
+See [Docs/INCIDENT_AUTHORING.md](../Docs/INCIDENT_AUTHORING.md).

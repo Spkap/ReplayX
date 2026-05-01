@@ -1,18 +1,18 @@
-# ReplayX Demo App
+# ReplayX Target App
 
 An intentionally broken Node.js application. It exists to give the ReplayX orchestrator a real, running codebase to read, command, and diagnose.
 
-This is not example code. The bugs are real and seeded deliberately — each one maps to an incident class in the launch registry.
+This is not example code. The bugs are real and seeded deliberately — each one maps to an incident class in the fixture registry.
 
 ---
 
 ## Purpose
 
-The demo app serves three roles:
+The target app serves three roles:
 
 1. **Repro target** — the orchestrator executes `commands.failing` and `commands.healthy` from each incident fixture against this app to confirm the bug before any diagnosis begins
 2. **Codebase for Codex workers** — diagnosis workers read actual source files here to find candidate root causes
-3. **Demo surface** — engineers can hit the app directly at `http://127.0.0.1:4311` to see the broken behavior before triggering a ReplayX run
+3. **Direct inspection surface** — engineers can hit the app directly at `http://127.0.0.1:4311` to see the broken behavior before triggering a ReplayX run
 
 ---
 

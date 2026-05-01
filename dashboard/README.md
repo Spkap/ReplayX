@@ -44,7 +44,7 @@ When `REPLAYX_INTERNAL_API_TOKEN` is set:
 The dashboard reads from two places at runtime:
 
 - `artifacts/` (repo root) — replay bundles, phase outputs, postmortems
-- `incidents/` (repo root) — launch incident metadata for the proof surface
+- `incidents/` (repo root) — fixture/eval incident metadata for the proof surface
 
 For live runs, it also connects to the orchestrator WebSocket at the configured URL.
 

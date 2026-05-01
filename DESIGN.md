@@ -1,16 +1,17 @@
 # Design System — ReplayX
 
 ## Product Context
-- **What this is:** A Slack-native incident response product that turns bug reports into live investigations, validated fixes, and reusable engineering memory.
-- **Who it's for:** Engineering teams, operators, and technical leads who need to understand and resolve production issues quickly.
+- **What this is:** A Codex-first incident proof engine that turns production-style incidents into ranked diagnosis, validated patch strategy, review artifacts, regression proof, postmortem, and reusable incident memory.
+- **Who it's for:** Engineering operators, technical leads, and founders who need to know whether an incident is understood, whether a fix is credible, and what proof exists before trusting the patch.
 - **Space/industry:** Incident management, developer tooling, engineering productivity.
-- **Project type:** Hybrid product. Marketing-style homepage with app-grade operational surfaces.
+- **Project type:** Operational product with an editorial first impression. The homepage is an entrance into the proof workspace, not a generic marketing page.
+- **Primary action:** Start or inspect a live ReplayX run until the user can trust the diagnosis, patch, and regression plan.
 
 ## Aesthetic Direction
 - **Direction:** Premium restrained operational editorial
 - **Decoration level:** Intentional
-- **Mood:** Calm, high-trust, precise, and quietly premium. ReplayX should feel like a serious command surface with just enough editorial character to be memorable.
-- **Differentiation:** Warmer and more human than Datadog or PagerDuty, cleaner and more product-grade than a founder demo page, more distinctive than standard incident SaaS.
+- **Mood:** Calm, high-trust, precise, and quietly premium. ReplayX should feel like a serious proof room: fast enough for incidents, restrained enough for executives, and concrete enough for engineers.
+- **Differentiation:** Warmer and more human than fleet monitoring tools, more evidence-led than standard incident SaaS, and less template-like than an AI demo dashboard.
 
 ## Typography
 - **Display/Hero:** Fraunces
@@ -31,21 +32,23 @@
 ## Color
 - **Approach:** Restrained warm editorial
 - **Core palette:**
-  - `--bg`: `oklch(0.965 0.008 68)`
-  - `--panel`: `rgba(255, 252, 246, 0.88)`
-  - `--panel-strong`: `oklch(0.93 0.012 62)`
-  - `--panel-inverse`: `oklch(0.22 0.018 32)`
-  - `--text`: `oklch(0.235 0.018 38)`
-  - `--muted`: `oklch(0.52 0.022 42)`
-  - `--accent`: `oklch(0.56 0.16 25)`
-  - `--accent-soft`: `oklch(0.92 0.038 26)`
-  - `--success`: `oklch(0.57 0.11 150)`
-  - `--warning`: `oklch(0.75 0.12 80)`
-  - `--danger`: `oklch(0.59 0.15 24)`
+  - `--bg`: `#f4efe6`
+  - `--bg-raised`: `#fbf7ef`
+  - `--surface-solid`: `#fffaf2`
+  - `--surface-inverse`: `#221917`
+  - `--text`: `#241b18`
+  - `--muted`: `#74665b`
+  - `--accent`: `#b65742`
+  - `--accent-soft`: `#f4d8ce`
+  - `--success`: `#2f7a55`
+  - `--warning`: `#9c6a11`
+  - `--danger`: `#b04432`
+  - `--info`: `#4a6576`
 - **Rules:**
   - One primary accent only
   - No purple, indigo, or blue-to-purple gradient defaults
   - Dark surfaces only for emphasis, never everywhere
+  - Light and dark modes use the same semantic tokens and must be visually checked together
 
 ## Spacing
 - **Base unit:** `8px`
@@ -66,8 +69,8 @@
   - App content should prefer rails and grouped regions over repeated equal-width cards
 - **Radius hierarchy:**
   - Small controls: `999px`
-  - Panels: `24px`
-  - Compact rows/chips: `16px`
+  - Large panels/surfaces: `16px`
+  - Compact rows/chips: `8–12px`
 - **Cards rule:** Cards are not the default layout tool. Use them only when the card is the interaction, status unit, or evidence block.
 
 ## Motion
@@ -88,12 +91,14 @@
 - Primary CTA is the product entrance
 - Supportive links are secondary, not equal-weight calls to action
 - The featured product truth should be: `Slack -> Workspace -> Validated PR -> Memory`
+- The first screen should answer: what is being proven, what is the next action, and what evidence exists.
 
 ### Incident Workspace
 - This is the hero product screen
 - Top rail must make current state obvious in under 5 seconds
 - Timeline and validation need stronger visual authority than decorative panels
 - Commands, PR metadata, and evidence should use crisp mono treatment
+- Decision callouts should be informational or proof-oriented unless the state is genuinely failed or blocked.
 
 ### Ops Command Center
 - Should feel like live fleet monitoring

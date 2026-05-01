@@ -5,4 +5,4 @@ match:
   incident_class: auth-token-session-failure
   winning_worker: diagnosis_auth
 fix_strategy: safe_fix
-demo_summary: Best combination of clear fix scope and explicit verification plan.
+operator_summary: Best combination of clear fix scope and explicit verification plan.

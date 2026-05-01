@@ -67,5 +67,5 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`ReplayX demo app listening on http://127.0.0.1:${PORT}`);
+  console.log(`ReplayX target app listening on http://127.0.0.1:${PORT}`);
 });

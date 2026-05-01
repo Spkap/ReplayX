@@ -69,7 +69,7 @@ const selectFixStrategyOutputs = (
           rollback_note: "Revert reserve-stock live revalidation logic.",
           risk_note: "Prevents the seeded race but still leaves the flow dependent on in-memory ordering.",
           score: 0.79,
-          demo_summary: "Smallest proposed patch with the lowest blast radius."
+          operator_summary: "Smallest proposed patch with the lowest blast radius."
         },
         {
           strategy: "safe_fix",
@@ -85,9 +85,9 @@ const selectFixStrategyOutputs = (
             "Verification plan: apply this candidate to checkout/inventory modules, rerun the concurrent checkout scenario, and confirm the serial control still passes.",
           blast_radius: "low",
           rollback_note: "Revert reservation guard and worker stale-state checks.",
-          risk_note: "Best demo option, but still a bounded in-memory fix rather than a production-grade transaction boundary.",
+          risk_note: "Best operator path, but still a bounded in-memory fix rather than a production-grade transaction boundary.",
           score: 0.94,
-          demo_summary: "Best balance of safety and clarity among the proposed fixes."
+          operator_summary: "Best balance of safety and clarity among the proposed fixes."
         },
         {
           strategy: "durable_fix",
@@ -106,7 +106,7 @@ const selectFixStrategyOutputs = (
           rollback_note: "Revert the coordinated checkout/inventory flow changes.",
           risk_note: "Clearer long-term shape, but higher change surface than the safe fix.",
           score: 0.86,
-          demo_summary: "Most durable proposal, but broader than needed for the demo."
+          operator_summary: "Most durable proposal, but broader than needed for the current fixture."
         }
       ];
     case "auth-token-session-failure":
@@ -124,7 +124,7 @@ const selectFixStrategyOutputs = (
           rollback_note: "Restore the old idle-session branch.",
           risk_note: "Fixes the bug directly but does not add stronger state-handoff visibility.",
           score: 0.91,
-          demo_summary: "Fastest clear proposal for the seeded auth incident."
+          operator_summary: "Fastest clear proposal for the seeded auth incident."
         },
         {
           strategy: "safe_fix",
@@ -140,9 +140,9 @@ const selectFixStrategyOutputs = (
             "Verification plan: apply the refresh and stale-token guard changes, then rerun idle and fresh-session auth checks.",
           blast_radius: "low",
           rollback_note: "Revert the idle refresh and stale-token guard changes.",
-          risk_note: "Best demo-safe path with better proof than the minimal fix.",
+          risk_note: "Best operator-safe path with better proof than the minimal fix.",
           score: 0.95,
-          demo_summary: "Best combination of clear fix scope and explicit verification plan."
+          operator_summary: "Best combination of clear fix scope and explicit verification plan."
         },
         {
           strategy: "durable_fix",
@@ -159,9 +159,9 @@ const selectFixStrategyOutputs = (
             "Verification plan: apply the broader auth-state refactor and rerun idle-session plus fresh-session auth checks.",
           blast_radius: "medium",
           rollback_note: "Revert the coordinated auth-state refactor.",
-          risk_note: "Broader changes increase explanation cost during the demo.",
+          risk_note: "Broader changes increase operator review cost.",
           score: 0.83,
-          demo_summary: "Most comprehensive auth proposal, but broader than needed."
+          operator_summary: "Most comprehensive auth proposal, but broader than needed."
         }
       ];
     case "null-data-shape-failure":
@@ -178,7 +178,7 @@ const selectFixStrategyOutputs = (
           rollback_note: "Restore direct reduce call on quote.taxes.",
           risk_note: "Fastest fix, but leaves normalization responsibility scattered.",
           score: 0.9,
-          demo_summary: "One-line null-safe proposal with a clear verification plan."
+          operator_summary: "One-line null-safe proposal with a clear verification plan."
         },
         {
           strategy: "safe_fix",
@@ -194,9 +194,9 @@ const selectFixStrategyOutputs = (
             "Verification plan: apply quote normalization plus null-safe rendering, then rerun missing and healthy quote fixtures.",
           blast_radius: "low",
           rollback_note: "Revert quote normalization and null-safe summary handling.",
-          risk_note: "Best demo-safe fix because it shows both local safety and upstream normalization.",
+          risk_note: "Best operator-safe fix because it shows both local safety and upstream normalization.",
           score: 0.96,
-          demo_summary: "Best mix of clear fix scope and robust shape handling."
+          operator_summary: "Best mix of clear fix scope and robust shape handling."
         },
         {
           strategy: "durable_fix",
@@ -213,9 +213,9 @@ const selectFixStrategyOutputs = (
             "Verification plan: apply the broader quote-shape contract and rerun both summary fixtures before accepting it.",
           blast_radius: "medium",
           rollback_note: "Revert the quote-shape contract changes.",
-          risk_note: "Good long-term direction, but slightly heavier than the safest demo path.",
+          risk_note: "Good long-term direction, but slightly heavier than the safest operator path.",
           score: 0.84,
-          demo_summary: "Most durable shape contract proposal, but broader than necessary."
+          operator_summary: "Most durable shape contract proposal, but broader than necessary."
         }
       ];
   }
@@ -231,7 +231,7 @@ const selectFixStrategyOutputs = (
     rollback_note: "No-op.",
     risk_note: "The fix arena needs a seeded strategy template for this incident class.",
     score: 0,
-    demo_summary: "No demo-safe fix strategy is available yet."
+    operator_summary: "No operator-safe fix strategy is available yet."
   }));
 };
 
@@ -278,8 +278,8 @@ export const runFixArenaPhase = (
     winner_summary: winnerOutput?.summary ?? "No completed fix strategy was available.",
     winner_changed_files: winnerOutput?.files_changed ?? [],
     ranking,
-    demo_summary:
-      winnerOutput?.demo_summary ??
+    operator_summary:
+      winnerOutput?.operator_summary ??
       "Fix arena could not produce a stable winner for the golden incident."
   };
 };

@@ -5,4 +5,4 @@ match:
   incident_class: null-data-shape-failure
   winning_worker: diagnosis_data_shape
 fix_strategy: safe_fix
-demo_summary: Best mix of clear fix scope and robust shape handling.
+operator_summary: Best mix of clear fix scope and robust shape handling.

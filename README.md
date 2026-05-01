@@ -1,147 +1,124 @@
 # ReplayX
 
-> **Incident response, replayed.**
+**Proof engine for coding-agent incident repair.**
 
-Drop a bug report into Slack. Walk away with a confirmed repro, a ranked diagnosis, a validated fix strategy, and a reusable skill — all in one deterministic, fully auditable run.
-
-No war rooms. No guesswork. No opaque agent traces.
-
----
-
-## The Problem
-
-Production incidents are a coordination disaster. Engineers context-switch between Slack threads, runbooks, dashboards, and gut instinct. By the time a fix lands, the postmortem is shallow and the same pattern breaks again three sprints later.
-
-**ReplayX changes the loop.** Every incident runs through a fixed sequence of specialists. Every hypothesis is challenged before it advances. Every resolved incident leaves a skill artifact behind — so the next engineer sees a known pattern, not a blank slate.
-
----
-
-## What You Get
-
-After one complete run:
-
-- **Confirmed repro** — real commands, real exit codes, real failure surface — before any theory is entertained
-- **Six parallel diagnosis workers** — each pinned to one failure domain, each producing a structured analysis with confidence score and a falsification note
-- **Adversarial validation** — weak or underdetermined theories are rejected before they reach the fix stage
-- **Three ranked fix strategies** — scored by blast radius, rollback confidence, and verification quality
-- **Regression-proof verification plan** — not "fix the bug" — prove it's fixed and prove nothing else broke
-- **A reusable incident skill** — written back to the skills catalog so future runs recognize the pattern instantly
-
-Everything is on disk, in plain JSON, fully inspectable. Nothing is hidden in an agent trace.
+Coding agents can write code. That is no longer the hard part. The hard part is trust — in production, "the agent says it fixed it" is not enough. ReplayX is the trust layer: it runs a disciplined, evidence-gated incident repair loop and makes every step inspectable and replayable.
 
 ---
 
 ## How It Works
 
-ReplayX runs a **deterministic 8-phase workflow**. Every phase boundary is a strict JSON contract. No phase accepts vague output from the one before it.
+A bug report enters as a Slack mention, API call, or manual form submission. ReplayX runs a deterministic 8-phase pipeline:
 
 ```
-Bug report in Slack (or POST /api/replayx/runs)
-    │
-    ├─① Incident Intake        validate and normalize the raw report
-    ├─② Skill Match            score against the growing skills catalog
-    ├─③ Repro                  execute failing + healthy commands; confirm the bug is real
-    ├─④ Diagnosis Arena        six Codex workers fan out in parallel
-    ├─⑤ Challenger Validation  adversarially reject weak hypotheses
-    ├─⑥ Fix Arena              generate minimal · safe · durable strategies; rank by score
-    ├─⑦ Review & Regression    write the verification proof plan
-    └─⑧ Postmortem & Skill     compile the postmortem; write a reusable skill back to catalog
+Intake → Skill match → Repro → Diagnosis arena → Challenger validation → Fix arena → Review & regression → Postmortem & skill write
 ```
 
-The live dashboard streams each phase as it completes. The replay surface makes every artifact shareable and inspectable after the run.
+At every phase boundary, a strict JSON artifact is written to disk. No opaque agent traces. No unverified fix claims.
 
-→ Full phase spec, flow diagram, and artifact map: **[PIPELINE.md](PIPELINE.md)**
+**The diagnosis arena** fans out 6 bounded Codex workers in parallel — each owns one failure domain (concurrency, auth, data shape, recent change, database, state handoff). Workers produce evidence citations and a falsification note. Weak theories are rejected by adversarial challenger gates before a fix path is selected.
+
+**The fix arena** produces three bounded strategies (minimal, safe, durable). Each includes changed files, a verification command, a rollback note, and a score. The winning strategy must pass the regression proof plan before the run closes.
+
+**Phase 8** writes a postmortem, a replayable artifact bundle, and a `skill.yaml` — closing the feedback loop. The next similar incident finds it in Phase 2.
+
+Full phase reference: [`PIPELINE.md`](PIPELINE.md)
+
+---
+
+## Run Modes
+
+| Mode | Trigger | What happens |
+|---|---|---|
+| **Realtime investigation** | Fresh Slack/API/manual text | Validates, searches source, captures recent changes, writes an evidence packet. Stops before claiming an unvalidated patch. |
+| **Fixture/eval pipeline** | Explicit fixture `incidentId` or `pnpm golden-run` | Runs all 8 phases for a bundled incident class. Writes full artifact set including replay bundle and skill. |
 
 ---
 
 ## Quickstart
 
-**Requirements:** Node.js ≥ 24.0 · pnpm ≥ 10 · Codex/OpenAI auth for live Codex workers
+**Requirements:** Node.js ≥ 24, pnpm ≥ 10. Codex/OpenAI auth only if you want live Codex workers.
 
 ```bash
 # Install
 pnpm install
 pnpm --dir dashboard install
+npm --prefix slack install
 
-# Start the stack (demo app + dashboard)
+# Start (target app + dashboard)
 pnpm dev:all
 ```
 
-**Trigger a run from Slack:**
-```
-@ReplayX checkout is overselling stock during concurrent orders
-```
+| Service | URL |
+|---|---|
+| Target app | `http://127.0.0.1:4311` |
+| Dashboard | `http://localhost:3001` |
 
-**Or trigger directly:**
+**Create a realtime incident:**
+
 ```bash
 curl -s -X POST http://localhost:3001/api/replayx/runs \
   -H 'content-type: application/json' \
   --data '{"source":"manual","text":"checkout is overselling stock during concurrent orders"}'
 ```
 
-If `REPLAYX_INTERNAL_API_TOKEN` is set, add `-H "authorization: Bearer ${REPLAYX_INTERNAL_API_TOKEN}"`.
+Open the returned `livePath` in your browser.
 
-Open the `incidentWorkspacePath` or `livePath` from the response. Plain incident text creates a realtime investigation run: ReplayX captures validation, repo search, recent changes, and an evidence packet before it claims any fix.
+**Run the full fixture/eval pipeline:**
 
-**Run an explicit fixture/eval replay:**
 ```bash
 pnpm golden-run incidents/checkout-race-condition.json
-# → http://localhost:3001/replay/incident-checkout-race-001
+# open http://localhost:3001/replay/incident-checkout-race-001
 ```
 
-To exercise the full deterministic fixture path through the live API, supply a fixture id explicitly:
+---
+
+## Repository Layout
+
+```
+ReplayX/
+├── orchestrator/     Phase runner, type contracts, prompts, and Codex workers
+├── dashboard/        Next.js product surface and live-run control plane
+├── slack/            Slack intake service
+├── demo_app/         Intentionally broken target app for fixture/eval incidents
+├── incidents/        Normalized incident fixtures (3 bundled classes)
+├── skills/           Reusable incident skills written by Phase 8
+├── tests/            Orchestrator and control-plane tests
+├── artifacts/        Phase outputs written at runtime (git-ignored)
+└── Docs/             Engineering, operations, and authoring docs
+```
+
+---
+
+## Verification
 
 ```bash
-curl -s -X POST http://localhost:3001/api/replayx/runs \
-  -H 'content-type: application/json' \
-  --data '{"source":"manual","incidentId":"incident-checkout-race-001","text":"checkout is overselling stock during concurrent orders"}'
+pnpm build
+pnpm test
+pnpm --dir dashboard build
+npm --prefix slack test
 ```
-
----
-
-## Included Incidents
-
-Three fully validated incident classes ship in the launch registry:
-
-| Incident | What it tests |
-|---|---|
-| **Checkout Race Condition** — oversell during concurrent orders | Non-atomic read-write, stale reservation token |
-| **Auth Token Session Failure** — session expires mid-flow | Broken token refresh path, stale session state |
-| **Null Data Shape Failure** — optional field arrives `null` | Missing null guard, downstream schema violation |
-
-→ Adding a new incident class: **[Docs/replayx-incident-authoring-guide.md](Docs/replayx-incident-authoring-guide.md)**
-
----
-
-## Stack
-
-| Layer | Technology |
-|---|---|
-| Orchestration | Node.js ≥ 24.0 + TypeScript + `@openai/codex-sdk` v0.121.0 |
-| Dashboard | Next.js — live run streaming + replay visualization |
-| Intake | Slack bot + REST API (`POST /api/replayx/runs`) |
-| Control plane | SQLite-backed store at `.replayx-control-plane/` |
-| Artifacts | Plain JSON on disk under `artifacts/<incident-id>/` |
-
-ReplayX uses `@openai/codex-sdk` because the hard parts of incident response — reading a real codebase, running commands, proposing a targeted fix — are software engineering tasks that need code-aware reasoning. Fresh live incidents do not silently fall back to seeded answers; deterministic fixture/eval runs remain available when explicitly selected.
-
-→ Architecture rationale: **[Docs/replayx-codex-first-architecture.md](Docs/replayx-codex-first-architecture.md)**
-→ Full stack reference: **[Docs/replayx-architecture.md](Docs/replayx-architecture.md)**
 
 ---
 
 ## Documentation
 
-| Doc | What's inside |
+| Need | Document |
 |---|---|
-| [PIPELINE.md](PIPELINE.md) | Phase model, flow diagram, specialist table, artifact map, implementation status |
-| [Docs/replayx-architecture.md](Docs/replayx-architecture.md) | Stack, runtime split, env vars, data flow, key files |
-| [Docs/replayx-codex-first-architecture.md](Docs/replayx-codex-first-architecture.md) | Why Codex-first; why not Agents SDK; fallback guarantee |
-| [Docs/replayx-demo-runbook.md](Docs/replayx-demo-runbook.md) | Live demo setup, preflight checklist, what to say |
-| [Docs/replayx-incident-authoring-guide.md](Docs/replayx-incident-authoring-guide.md) | Add a new incident class end to end |
-| [dashboard/README.md](dashboard/README.md) | Dashboard routes, local dev, signed links, env vars |
-| [slack/README.md](slack/README.md) | Slack service setup, env vars, deployment |
-| [incidents/README.md](incidents/README.md) | Incident fixture format, validation rules, schema reference |
+| Phase model, flow diagram, artifact map | [`PIPELINE.md`](PIPELINE.md) |
+| Runtime architecture, component map, worker model | [`Docs/ENGINEERING.md`](Docs/ENGINEERING.md) |
+| Local setup, Slack, env vars, routes, troubleshooting | [`Docs/OPERATIONS.md`](Docs/OPERATIONS.md) |
+| Adding a new incident class end to end | [`Docs/INCIDENT_AUTHORING.md`](Docs/INCIDENT_AUTHORING.md) |
+| Dashboard routes, auth, archive semantics | [`dashboard/README.md`](dashboard/README.md) |
+| Target app bugs and repro scripts | [`demo_app/README.md`](demo_app/README.md) |
+| Incident fixture format and schema | [`incidents/README.md`](incidents/README.md) |
+| Skill catalog and scoring | [`skills/README.md`](skills/README.md) |
+
+---
+
+## Current Boundary
+
+ReplayX does not pretend every fresh bug is already fixed. Fresh realtime incidents stop at the evidence packet and patch-planning gate today. The fixture/eval path runs end to end for all three bundled incident classes. The next major step is a bounded Codex patch worker: edit only the justified files, rerun validation, store the diff, and mark a PR path ready only after the proof passes.
 
 ---
 

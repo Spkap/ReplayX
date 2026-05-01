@@ -379,7 +379,7 @@ export interface ReplayXFixWorkerOutput {
   rollback_note: string;
   risk_note: string;
   score: number;
-  demo_summary: string;
+  operator_summary: string;
 }
 
 export interface ReplayXFixWorkerRunRecord {
@@ -408,7 +408,7 @@ export interface ReplayXFixArenaPhaseOutput {
     score: number;
     status: ReplayXFixWorkerStatus;
   }>;
-  demo_summary: string;
+  operator_summary: string;
 }
 
 export interface ReplayXReviewFinding {
@@ -422,7 +422,7 @@ export interface ReplayXRegressionProof {
   target_files: string[];
   why_this_test: string;
   verification_command: string;
-  demo_summary: string;
+  operator_summary: string;
 }
 
 export interface ReplayXReviewAndRegressionPhaseOutput {
@@ -433,7 +433,7 @@ export interface ReplayXReviewAndRegressionPhaseOutput {
   findings: ReplayXReviewFinding[];
   residual_risk: string;
   regression_proof: ReplayXRegressionProof;
-  demo_summary: string;
+  operator_summary: string;
 }
 
 export interface ReplayXPostmortemAndSkillPhaseOutput {
@@ -444,7 +444,7 @@ export interface ReplayXPostmortemAndSkillPhaseOutput {
   postmortem_summary: string;
   skill_path: string;
   skill_summary: string;
-  demo_summary: string;
+  operator_summary: string;
 }
 
 export interface ReplayXDashboardReplayArtifact {
@@ -499,7 +499,7 @@ export interface ReplayXDashboardReplayArtifact {
     before: string;
     after: string;
   };
-  demo_summary: string;
+  operator_summary: string;
 }
 
 export interface ReplayXSlackIntakeArtifact {
@@ -511,16 +511,16 @@ export interface ReplayXSlackIntakeArtifact {
   replay_target: string;
 }
 
-export interface ReplayXDemoScriptBeat {
-  timestamp: string;
-  screen: string;
-  narration: string;
-  proof_point: string;
+export interface ReplayXOperatorBriefSection {
+  section: string;
+  surface: string;
+  summary: string;
+  evidence_point: string;
 }
 
-export interface ReplayXDemoScriptArtifact {
+export interface ReplayXOperatorBriefArtifact {
   schemaVersion: 1;
   incidentId: string;
-  beats: ReplayXDemoScriptBeat[];
-  closing_line: string;
+  sections: ReplayXOperatorBriefSection[];
+  closing_summary: string;
 }

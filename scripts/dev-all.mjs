@@ -41,7 +41,7 @@ const commands = [
     name: "demo-app",
     command: "pnpm",
     args: ["demo-app"],
-    ready: "Demo app -> http://127.0.0.1:4311"
+    ready: "Target app -> http://127.0.0.1:4311"
   },
   {
     name: "dashboard",

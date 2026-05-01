@@ -210,7 +210,7 @@ type DashboardReplayArtifact = {
     before: string;
     after: string;
   };
-  demo_summary: string;
+  operator_summary: string;
 };
 
 export type ReplayWorkerCard = {

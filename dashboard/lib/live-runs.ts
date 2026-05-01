@@ -144,7 +144,7 @@ export type LiveRunCards = {
   postmortem: ReplayXDashboardReplayArtifact["postmortem_card"];
   skill: ReplayXDashboardReplayArtifact["skill_card"];
   beforeAfter: ReplayXDashboardReplayArtifact["before_after"];
-  demoSummary: string;
+  operatorSummary: string;
 };
 
 export type ReplayXLiveRun = {
@@ -401,7 +401,7 @@ const pendingCards = (issueText: string): LiveRunCards => ({
     before: issueText,
     after: "ReplayX will attach the validated outcome here."
   },
-  demoSummary: "ReplayX live run is queued."
+  operatorSummary: "ReplayX live run is queued."
 });
 
 const nowIso = (): string => new Date().toISOString();
@@ -2154,7 +2154,7 @@ const runRealtimeInvestigationPipeline = async (
         before: run.issue.text,
         after: "Realtime evidence packet created. Patch validation is the next gate."
       },
-      demoSummary: "Realtime investigation completed without using seeded fixtures."
+      operatorSummary: "Realtime investigation completed without using seeded fixtures."
     },
     pullRequest: {
       ...run.pullRequest,
@@ -2184,7 +2184,7 @@ const runRealtimeInvestigationPipeline = async (
     status: "blocked",
     decision: "Stop before claiming a fix.",
     rationale:
-      "A $100M incident product must not present a seeded or unvalidated patch as realtime resolution. This run needs the bounded Codex patch worker before PR packaging.",
+      "ReplayX must not present a seeded or unvalidated patch as realtime resolution. This run needs the bounded Codex patch worker before PR packaging.",
     evidenceItemIds: run.evidence.slice(-1).map((item) => item.id)
   });
   run = await writeRun(run, options);
@@ -2319,7 +2319,7 @@ export const runReplayXLivePipeline = async (
           before: run.issue.text,
           after: "Operator-authored remediation required before ReplayX can validate an outcome."
         },
-        demoSummary: "ReplayX routed this incident into an assisted execution path."
+        operatorSummary: "ReplayX routed this incident into an assisted execution path."
       }
     };
     run = appendEvidence(run, {
@@ -2793,7 +2793,7 @@ export const runReplayXLivePipeline = async (
           before: replay.before_after.before,
           after: patchValidation.summary
         },
-        demoSummary: replay.demo_summary
+        operatorSummary: replay.operator_summary
       }
     };
     completedRun = appendEvidence(completedRun, {

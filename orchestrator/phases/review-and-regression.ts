@@ -45,7 +45,7 @@ const buildFindings = (
       {
         severity: "suggestion",
         file: fixResult.winner_changed_files[0] ?? "demo_app/",
-        issue: "The durable strategy changes more files than the safest demo path and should be justified clearly in narration."
+        issue: "The durable strategy changes more files than the safest operator path and should be justified clearly in the review notes."
       }
     ];
   }
@@ -76,16 +76,16 @@ export const runReviewAndRegressionPhase = (
     residual_risk:
       reviewVerdict === "planned"
         ? "ReplayX has a reviewable fix proposal, but it does not yet execute and verify a real patch in the repository."
-        : "A critical issue blocked the review verdict, so the demo must not present the fix proposal as accepted.",
+        : "A critical issue blocked the review verdict, so the dashboard must not present the fix proposal as accepted.",
     regression_proof: {
       test_type: "script",
       target_files: fixResult.winner_changed_files,
       why_this_test:
-        "The demo relies on a future execution step proving that the seeded failure disappears while the healthy control still passes.",
+        "ReplayX relies on a future execution step proving that the seeded failure disappears while the healthy control still passes.",
       verification_command: regressionCommand,
-      demo_summary: regressionSummary
+      operator_summary: regressionSummary
     },
-    demo_summary:
+    operator_summary:
       reviewVerdict === "planned"
         ? "ReplayX produced a reviewed verification plan, but the fix is still a proposal until a real patch loop runs."
         : "Review is blocked; the dashboard must show the fix as unapproved."
@@ -113,7 +113,7 @@ export const writeReviewAndRegressionArtifacts = async (
       `Review verdict: ${result.review_verdict}`,
       `Findings: ${result.findings.length > 0 ? result.findings.map((f) => `${f.severity}:${f.file}`).join("; ") : "none"}`,
       `Regression command: ${result.regression_proof.verification_command}`,
-      `Demo summary: ${result.demo_summary}`
+      `Operator summary: ${result.operator_summary}`
     ].join("\n")}\n`,
     "utf8"
   );

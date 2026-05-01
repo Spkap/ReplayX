@@ -5,4 +5,4 @@ match:
   incident_class: checkout-race-condition
   winning_worker: diagnosis_concurrency
 fix_strategy: safe_fix
-demo_summary: Best balance of safety and clarity among the proposed fixes.
+operator_summary: Best balance of safety and clarity among the proposed fixes.

@@ -152,7 +152,7 @@ artifacts/<incident-id>/
   postmortem.md                         ← Phase 8  human-readable postmortem
   skill.yaml                            ← Phase 8  reusable incident skill
   dashboard-replay.json                 ← Phase 8  dashboard replay bundle
-  demo-script.json                      ← Phase 8  narrated demo beats
+  operator-brief.json                      ← Phase 8  operator-facing incident brief
   slack-intake.json                     ← Phase 8  Slack handoff blob
   phase.postmortem-and-skill.json       ← Phase 8  metadata
 ```
@@ -197,4 +197,4 @@ All 8 phases are implemented and the golden path runs end to end.
 | 7 — Review & Regression | ✅ | Deterministic verdict and verification plan |
 | 8 — Postmortem & Skill Write | ✅ | Deterministic artifact compilation |
 
-Fix and review logic is seeded for the three bundled launch classes (`checkout-race-condition`, `auth-token-session-failure`, `null-data-shape-failure`). Incidents outside the registry enter an assisted execution path with explicit operator handoff. See [Docs/replayx-incident-authoring-guide.md](Docs/replayx-incident-authoring-guide.md) to extend the registry.
+Fix and review logic is seeded for the three bundled launch classes (`checkout-race-condition`, `auth-token-session-failure`, `null-data-shape-failure`). Incidents outside the registry enter an assisted execution path with explicit operator handoff. See [Docs/INCIDENT_AUTHORING.md](Docs/INCIDENT_AUTHORING.md) to extend the registry.

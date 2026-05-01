@@ -40,6 +40,7 @@ coverage/
 .vscode/
 .claude/
 .codex-qa/
+.local-docs/
 
 # Temporary files
 tmp/
@@ -54,3 +55,4 @@ artifacts/
 /.replayx-runs
 /.replayx-control-plane
 .gstack/
+Docs/superpowers/

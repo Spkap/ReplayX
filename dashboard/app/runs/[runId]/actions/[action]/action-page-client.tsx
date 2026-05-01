@@ -211,7 +211,7 @@ export function ActionPageClient({
       <div className="header-actions" style={{ marginTop: "2rem" }}>
         {!nextRun && !blockedActionReason ? (
           <button className="button button-primary" disabled={pending} onClick={handleConfirm} type="button">
-            {pending ? "Working..." : copy.confirm}
+            {pending ? "Working…" : copy.confirm}
           </button>
         ) : null}
         <Link className="button button-secondary" href={incidentWorkspacePath}>

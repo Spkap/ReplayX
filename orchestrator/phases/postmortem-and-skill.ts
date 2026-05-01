@@ -5,7 +5,7 @@ import type {
   NormalizedIncident,
   ReplayXChallengerValidationPhaseOutput,
   ReplayXDashboardReplayArtifact,
-  ReplayXDemoScriptArtifact,
+  ReplayXOperatorBriefArtifact,
   ReplayXDiagnosisArenaPhaseOutput,
   ReplayXFixArenaPhaseOutput,
   ReplayXPhaseDefinition,
@@ -27,13 +27,13 @@ export const postmortemAndSkillPhase: ReplayXPhaseDefinition = {
     "postmortem.md",
     "skill.yaml",
     "dashboard-replay.json",
-    "demo-script.json",
+    "operator-brief.json",
     "slack-intake.json"
   ],
   dependsOn: ["review-and-regression"],
   status: "ready",
   implementationNotes:
-    "Compiles the golden-run artifacts needed by the dashboard, Slack handoff, and demo script."
+    "Compiles the golden-run artifacts needed by the dashboard, Slack handoff, and operator review."
 };
 
 export const buildDashboardReplayArtifact = (
@@ -92,7 +92,7 @@ export const buildDashboardReplayArtifact = (
       {
         step: "5",
         title: "Proof",
-        summary: reviewResult.regression_proof.demo_summary,
+        summary: reviewResult.regression_proof.operator_summary,
         status: "highlighted"
       }
     ],
@@ -118,7 +118,7 @@ export const buildDashboardReplayArtifact = (
     proof_card: {
       review_verdict: reviewResult.review_verdict,
       regression_command: reviewResult.regression_proof.verification_command,
-      regression_summary: reviewResult.regression_proof.demo_summary
+      regression_summary: reviewResult.regression_proof.operator_summary
     },
     postmortem_card: {
       summary: postmortemSummary,
@@ -130,9 +130,9 @@ export const buildDashboardReplayArtifact = (
     },
     before_after: {
       before: incident.summary.symptom,
-      after: reviewResult.regression_proof.demo_summary
+      after: reviewResult.regression_proof.operator_summary
     },
-    demo_summary:
+    operator_summary:
       "ReplayX ingests the incident, shows bounded worker fan-out, ranks a fix proposal, outlines verification, and emits reusable incident knowledge."
   };
 };
@@ -148,63 +148,63 @@ export const buildSlackIntakeArtifact = (
   replay_target: `/replay/${incident.incidentId}`
 });
 
-export const buildDemoScriptArtifact = (
+export const buildOperatorBriefArtifact = (
   incident: NormalizedIncident,
   replayArtifact: ReplayXDashboardReplayArtifact
-): ReplayXDemoScriptArtifact => ({
+): ReplayXOperatorBriefArtifact => ({
   schemaVersion: 1,
   incidentId: incident.incidentId,
-  beats: [
+  sections: [
     {
-      timestamp: "00:00-00:10",
-      screen: "Title card + one-line problem statement",
-      narration:
+      section: "Problem",
+      surface: "Incident overview",
+      summary:
         "Production incident response is slow and manual. ReplayX turns an incident bundle into a ranked diagnosis, fix path, proof, and reusable knowledge.",
-      proof_point: "Judges understand the product before any technical detail appears."
+      evidence_point: incident.summary.customerImpact
     },
     {
-      timestamp: "00:10-00:25",
-      screen: "Broken demo app state or failing signal",
-      narration: "Here is the broken app state for the golden incident. The bug is concrete and user-visible.",
-      proof_point: incident.summary.symptom
+      section: "Failure",
+      surface: "Target app or failing signal",
+      summary: "The incident starts from a concrete, user-visible failure.",
+      evidence_point: incident.summary.symptom
     },
     {
-      timestamp: "00:25-00:40",
-      screen: "Slack intake trigger",
-      narration:
+      section: "Intake",
+      surface: "Slack intake",
+      summary:
         "A bug report arrives in Slack. ReplayX acknowledges it and hands off into the incident replay flow.",
-      proof_point: "Slack is the intake trigger into the product, not just a side integration."
+      evidence_point: "Slack is the intake trigger into the product, not just a side integration."
     },
     {
-      timestamp: "00:40-01:05",
-      screen: "ReplayX dashboard diagnosis worker fan-out",
-      narration:
+      section: "Diagnosis",
+      surface: "ReplayX dashboard",
+      summary:
         "ReplayX fans out Codex specialists, compares competing explanations, and surfaces the strongest diagnosis.",
-      proof_point: replayArtifact.winner_card.winning_reason
+      evidence_point: replayArtifact.winner_card.winning_reason
     },
     {
-      timestamp: "01:05-01:30",
-      screen: "Fix and proof cards",
-      narration:
-        "ReplayX selects the safest winning fix proposal and shows the verification plan needed to trust it, not just a claim.",
-      proof_point: replayArtifact.fix_card.summary
+      section: "Fix Path",
+      surface: "Fix and proof cards",
+      summary:
+        "ReplayX selects the safest fix proposal and shows the verification plan needed to trust it, not just a claim.",
+      evidence_point: replayArtifact.fix_card.summary
     },
     {
-      timestamp: "01:30-01:50",
-      screen: "Before/after and artifact cards",
-      narration:
+      section: "Memory",
+      surface: "Postmortem and skill artifacts",
+      summary:
         "ReplayX packages the run into a postmortem and a reusable skill so the next incident starts with more context.",
-      proof_point: replayArtifact.before_after.after
+      evidence_point: replayArtifact.before_after.after
     },
     {
-      timestamp: "01:50-02:00",
-      screen: "ReplayX final product screen",
-      narration:
+      section: "System",
+      surface: "ReplayX final product state",
+      summary:
         "ReplayX is built on Codex as the debugging brain: bounded specialists, code-aware fixes, proof, and reusable incident memory.",
-      proof_point: "This is only possible because Codex is the reasoning and coding engine inside the workflow."
+      evidence_point: "Codex provides repo-aware reasoning inside a bounded proof workflow."
     }
   ],
-  closing_line: "ReplayX: incident response built on Codex."
+  closing_summary: "ReplayX turns incident repair into an evidence-backed, replayable workflow."
 });
 
 const buildPostmortemMarkdown = (
@@ -212,13 +212,13 @@ const buildPostmortemMarkdown = (
   challengerResult: ReplayXChallengerValidationPhaseOutput,
   fixResult: ReplayXFixArenaPhaseOutput,
   reviewResult: ReplayXReviewAndRegressionPhaseOutput
-): string => `# ReplayX Postmortem\n\n## Summary\n${incident.summary.symptom}\n\n## Root Cause\n${challengerResult.winning_reason}\n\n## Proposed Fix\n${fixResult.winner_summary}\n\n## Verification Plan\n${reviewResult.regression_proof.demo_summary}\n\n## Residual Risk\n${reviewResult.residual_risk}\n`;
+): string => `# ReplayX Postmortem\n\n## Summary\n${incident.summary.symptom}\n\n## Root Cause\n${challengerResult.winning_reason}\n\n## Proposed Fix\n${fixResult.winner_summary}\n\n## Verification Plan\n${reviewResult.regression_proof.operator_summary}\n\n## Residual Risk\n${reviewResult.residual_risk}\n`;
 
 const buildSkillYaml = (
   incident: NormalizedIncident,
   challengerResult: ReplayXChallengerValidationPhaseOutput,
   fixResult: ReplayXFixArenaPhaseOutput
-): string => `id: ${incident.incidentId}\ntitle: ${incident.title}\nmatch:\n  service: ${incident.service}\n  incident_class: ${incident.incidentClass}\n  winning_worker: ${challengerResult.winner ?? "unknown"}\nfix_strategy: ${fixResult.winner ?? "unknown"}\ndemo_summary: ${fixResult.demo_summary}\n`;
+): string => `id: ${incident.incidentId}\ntitle: ${incident.title}\nmatch:\n  service: ${incident.service}\n  incident_class: ${incident.incidentClass}\n  winning_worker: ${challengerResult.winner ?? "unknown"}\nfix_strategy: ${fixResult.winner ?? "unknown"}\noperator_summary: ${fixResult.operator_summary}\n`;
 
 export const runPostmortemAndSkillPhase = async (
   runtime: ReplayXRuntimeConfig,
@@ -234,7 +234,7 @@ export const runPostmortemAndSkillPhase = async (
   const canonicalSkillPath = path.join(runtime.repoRoot, "skills", `${incident.incidentId}.yaml`);
   const replayArtifactPath = path.join(incidentArtifactDirectory, "dashboard-replay.json");
   const slackArtifactPath = path.join(incidentArtifactDirectory, "slack-intake.json");
-  const demoScriptPath = path.join(incidentArtifactDirectory, "demo-script.json");
+  const operatorBriefPath = path.join(incidentArtifactDirectory, "operator-brief.json");
 
   await mkdir(incidentArtifactDirectory, { recursive: true });
   await mkdir(path.join(runtime.repoRoot, "skills"), { recursive: true });
@@ -260,7 +260,7 @@ export const runPostmortemAndSkillPhase = async (
     skillPath
   );
   const slackArtifact = buildSlackIntakeArtifact(incident);
-  const demoScriptArtifact = buildDemoScriptArtifact(incident, replayArtifact);
+  const operatorBriefArtifact = buildOperatorBriefArtifact(incident, replayArtifact);
 
   await Promise.all([
     writeFile(postmortemPath, postmortemMarkdown, "utf8"),
@@ -268,7 +268,7 @@ export const runPostmortemAndSkillPhase = async (
     writeFile(canonicalSkillPath, skillYaml, "utf8"),
     writeFile(replayArtifactPath, `${JSON.stringify(replayArtifact, null, 2)}\n`, "utf8"),
     writeFile(slackArtifactPath, `${JSON.stringify(slackArtifact, null, 2)}\n`, "utf8"),
-    writeFile(demoScriptPath, `${JSON.stringify(demoScriptArtifact, null, 2)}\n`, "utf8")
+    writeFile(operatorBriefPath, `${JSON.stringify(operatorBriefArtifact, null, 2)}\n`, "utf8")
   ]);
 
   return {
@@ -279,7 +279,7 @@ export const runPostmortemAndSkillPhase = async (
     postmortem_summary: postmortemSummary,
     skill_path: skillPath,
     skill_summary: skillSummary,
-    demo_summary: replayArtifact.demo_summary
+    operator_summary: replayArtifact.operator_summary
   };
 };
 

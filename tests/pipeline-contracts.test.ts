@@ -196,11 +196,11 @@ test("review phase stays planned until a real patch execution loop exists", () =
       "demo_app/src/orders/build-summary.ts"
     ],
     ranking: [],
-    demo_summary: "Best proposal for the seeded null-shape incident."
+    operator_summary: "Best proposal for the seeded null-shape incident."
   };
 
   const result = runReviewAndRegressionPhase(baseIncident, fixResult);
 
   assert.equal(result.review_verdict, "planned");
-  assert.match(result.regression_proof.demo_summary, /Planned verification should show/i);
+  assert.match(result.regression_proof.operator_summary, /Planned verification should show/i);
 });

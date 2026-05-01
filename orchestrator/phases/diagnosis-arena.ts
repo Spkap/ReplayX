@@ -378,7 +378,7 @@ const deriveLocalHeuristicOutput = (
           confidence: 0.67,
           observations: [
             "The stack trace and logs describe commit-time invariant failure after state was validated earlier against an older snapshot.",
-            "The code mutates inventory after a stale read, which behaves like a missing transaction boundary even in this in-memory demo app.",
+            "The code mutates inventory after a stale read, which behaves like a missing transaction boundary even in this in-memory target app.",
             "This worker sees a persistence-semantics issue, but the evidence is weaker than the dedicated concurrency explanation."
           ],
           commands_run: commandsRun,
